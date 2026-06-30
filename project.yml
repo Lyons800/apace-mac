@@ -1,0 +1,41 @@
+name: Apace
+
+options:
+  bundleIdPrefix: so.apace
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+packages:
+  ApaceKit:
+    path: .
+
+targets:
+  Apace:
+    type: application
+    platform: macOS
+    sources:
+      - App
+    dependencies:
+      - package: ApaceKit
+        product: Features
+      - package: ApaceKit
+        product: Adapters
+      - package: ApaceKit
+        product: ApaceKit
+    settings:
+      base:
+        PRODUCT_NAME: Apace
+        PRODUCT_BUNDLE_IDENTIFIER: so.apace
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: App/Info.plist
+        SWIFT_VERSION: "6.0"
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_HARDENED_RUNTIME: YES
+        COMBINE_HIDPI_IMAGES: YES
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/../Frameworks"
