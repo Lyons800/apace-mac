@@ -11,9 +11,9 @@ extension TranscriberClient {
         transcribe: { try await AppleSpeech.transcribe($0) }
     )
 
-    /// The engine the app uses today. Milestone M2 turns this into a choice between
-    /// Apple, WhisperKit, and Parakeet behind the same port.
-    public static let live = apple
+    /// The engine the app uses by default. Selecting a different one (in settings)
+    /// resolves through ``make(for:)``.
+    public static let live = make(for: .default)
 }
 
 /// Errors surfaced from the speech adapter; the coordinator turns them into a
@@ -22,6 +22,7 @@ enum TranscriptionError: Error {
     case notAuthorized
     case recognizerUnavailable
     case audioBufferUnavailable
+    case engineUnavailable(TranscriptionEngine)
 }
 
 /// The mechanics of driving `SFSpeechRecognizer`, kept off the `TranscriberClient`
