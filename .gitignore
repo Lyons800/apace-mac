@@ -1,0 +1,34 @@
+# Xcode / Swift
+xcuserdata/
+*.hmap
+*.dSYM.zip
+*.dSYM
+timeline.xctimeline
+playground.xcworkspace
+DerivedData/
+build/
+*.xcresult
+
+# Swift Package Manager
+.build/
+# Package.resolved is committed on purpose (deps are pinned for an app).
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+
+# Signing material & local secrets — must never land in a public repo
+*.p12
+*.cer
+*.mobileprovision
+*.xcconfig.local
+ExportOptions.local.plist
