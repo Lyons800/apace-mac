@@ -21,6 +21,7 @@ let package = Package(
     products: [
         .library(name: "Features", targets: ["Features"]),
         .library(name: "Adapters", targets: ["AudioCapture", "Transcription", "SystemServices"]),
+        .library(name: "ApaceKit", targets: ["ApaceCore", "ApaceClients", "DictationPipeline"]),
     ],
     targets: [
         // MARK: Domain
