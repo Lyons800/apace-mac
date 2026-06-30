@@ -43,7 +43,7 @@ let package = Package(
         ),
         .target(
             name: "Features",
-            dependencies: ["ApaceCore", "ApaceClients", "DesignSystem"],
+            dependencies: ["ApaceCore", "ApaceClients", "DictationPipeline", "DesignSystem"],
             swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
 
@@ -52,6 +52,10 @@ let package = Package(
         .testTarget(
             name: "DictationPipelineTests",
             dependencies: ["DictationPipeline", "ApaceCore", "ApaceClients"]
+        ),
+        .testTarget(
+            name: "FeaturesTests",
+            dependencies: ["Features", "ApaceCore", "ApaceClients"]
         ),
     ]
 )
