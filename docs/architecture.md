@@ -7,8 +7,9 @@ touches the system is injected in as an adapter.
 
 ```
 App shell (.app)      @main, MenuBarExtra/Settings/Window scenes, Sparkle,
-                      and the composition root that wires the live adapters.
-                      Contains almost no logic.
+                      and the composition root (`DictationClients.live`) that wires
+                      the live adapters. Generated from project.yml (ADR-0006);
+                      contains almost no logic.
    │
    ▼
 Features              One @Observable store + SwiftUI view per surface

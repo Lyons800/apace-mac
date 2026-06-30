@@ -44,9 +44,23 @@ Building for personal use is permitted by the license; redistribution is not.
 ```bash
 git clone https://github.com/Lyons800/apace-mac.git
 cd apace-mac
+
 swift build      # builds the ApaceKit modules
 swift test       # runs the domain tests (no hardware required)
 ```
+
+To build and run the app itself, generate the Xcode project with
+[XcodeGen](https://github.com/yonaskolb/XcodeGen) (the `.xcodeproj` is not checked in
+— see [ADR-0006](docs/adr/0006-app-shell-and-project-generation.md)):
+
+```bash
+brew install xcodegen
+xcodegen generate          # writes Apace.xcodeproj from project.yml
+open Apace.xcodeproj       # then build & run the Apace scheme
+```
+
+Apace lives in the menu bar. Hold **Right Option** to dictate and release to insert the
+text; grant Microphone, Speech Recognition, and Accessibility access when prompted.
 
 ## Security
 
