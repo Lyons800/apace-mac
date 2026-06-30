@@ -27,6 +27,9 @@ let package = Package(
         .target(name: "ApaceCore"),
         .target(name: "ApaceClients", dependencies: ["ApaceCore"]),
 
+        // MARK: Application
+        .target(name: "DictationPipeline", dependencies: ["ApaceCore", "ApaceClients"]),
+
         // MARK: Infrastructure (live adapters)
         .target(name: "AudioCapture", dependencies: ["ApaceClients"]),
         .target(name: "Transcription", dependencies: ["ApaceClients"]),
@@ -46,5 +49,9 @@ let package = Package(
 
         // MARK: Tests
         .testTarget(name: "ApaceCoreTests", dependencies: ["ApaceCore", "ApaceClients"]),
+        .testTarget(
+            name: "DictationPipelineTests",
+            dependencies: ["DictationPipeline", "ApaceCore", "ApaceClients"]
+        ),
     ]
 )

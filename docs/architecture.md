@@ -60,6 +60,7 @@ Two channels: throttled **partials** drive the live notch preview; one accurate
 | --- | --- | --- |
 | `ApaceCore` | Domain: state machine, value types | — |
 | `ApaceClients` | The ports (struct-of-closures) | `ApaceCore` |
+| `DictationPipeline` | The coordinator: drives the state machine through the ports | `ApaceCore`, `ApaceClients` |
 | `AudioCapture` | `AVAudioEngine` adapter | `ApaceClients` |
 | `Transcription` | ASR engine adapters | `ApaceClients` |
 | `SystemServices` | Hotkey tap + text insertion | `ApaceClients` |
