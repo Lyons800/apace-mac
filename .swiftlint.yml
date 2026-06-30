@@ -1,0 +1,27 @@
+opt_in_rules:
+  - empty_count
+  - first_where
+  - force_unwrapping
+  - implicit_return
+  - sorted_imports
+  - toggle_bool
+  - unused_import
+  - redundant_nil_coalescing
+  - closure_spacing
+
+disabled_rules:
+  - trailing_whitespace   # owned by swift-format / .editorconfig
+  - line_length           # owned by swift-format
+
+excluded:
+  - .build
+  - DerivedData
+
+force_cast: error
+force_try: error
+
+identifier_name:
+  min_length: 2
+  excluded: [id, x, y, ok]
+
+reporter: "xcode"
