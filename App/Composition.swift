@@ -1,6 +1,7 @@
 import ApaceClients
 import AudioCapture
 import SystemServices
+import TextCleanup
 import Transcription
 
 extension DictationClients {
@@ -17,11 +18,16 @@ extension DictationClients {
 }
 
 extension TextProcessorClient {
-    /// Cleans up the transcript before it's inserted. Today that's the user's custom
-    /// vocabulary, read fresh on every dictation so edits take effect immediately;
-    /// AI cleanup will compose onto this behind the same port.
+    /// Cleans up the transcript before it's inserted, reading both preferences fresh on
+    /// every dictation so changes take effect immediately: optional AI cleanup first
+    /// (when the user has enabled it), then the user's custom vocabulary, which gets the
+    /// final say on exact spellings.
     static let live = TextProcessorClient { text in
-        VocabularyPreference.vocabulary.apply(to: text)
+        var result = text
+        if CleanupPreference.isEnabled {
+            result = await appleIntelligence.process(result)
+        }
+        return VocabularyPreference.vocabulary.apply(to: result)
     }
 }
 

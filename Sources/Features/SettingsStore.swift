@@ -11,7 +11,12 @@ public final class SettingsStore {
         didSet { EnginePreference.engine = engine }
     }
 
+    public var aiCleanupEnabled: Bool {
+        didSet { CleanupPreference.isEnabled = aiCleanupEnabled }
+    }
+
     public init() {
         engine = EnginePreference.engine
+        aiCleanupEnabled = CleanupPreference.isEnabled
     }
 }

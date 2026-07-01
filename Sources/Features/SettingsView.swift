@@ -25,6 +25,17 @@ public struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Cleanup") {
+                Toggle("Clean up dictation with AI", isOn: $settings.aiCleanupEnabled)
+                Text(
+                    "Removes filler and fixes punctuation on-device with Apple "
+                        + "Intelligence. Does nothing where it's unavailable — your own API "
+                        + "key as a fallback is coming."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
             Section("Custom words") {
                 ForEach($vocabulary.entries) { $entry in
                     HStack(spacing: 8) {
