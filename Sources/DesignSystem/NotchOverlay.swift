@@ -9,9 +9,11 @@ import SwiftUI
 /// panel disappear.
 public struct NotchOverlay: View {
     private let state: DictationState
+    private let level: Double
 
-    public init(state: DictationState) {
+    public init(state: DictationState, level: Double = 0) {
         self.state = state
+        self.level = level
     }
 
     public var body: some View {
@@ -27,7 +29,7 @@ public struct NotchOverlay: View {
 
         case .listening(let partial):
             pill {
-                EqualizerBars()
+                EqualizerBars(level: level)
                 if !partial.isEmpty {
                     transcript(partial)
                 }
@@ -87,34 +89,34 @@ public struct NotchOverlay: View {
     }
 }
 
-/// A small equalizer that conveys "listening". It animates on its own for now; a
-/// later change drives the bar heights from the live audio level.
+/// A small equalizer driven by the live microphone level. Each bar has its own weight
+/// so louder speech pushes the middle bars highest, giving the classic voice shape.
 private struct EqualizerBars: View {
-    @State private var animating = false
+    let level: Double
 
-    private let heights: [CGFloat] = [10, 20, 13, 22, 11]
+    private let weights: [CGFloat] = [0.55, 0.85, 1.0, 0.8, 0.6]
+    private let minHeight: CGFloat = 4
+    private let maxHeight: CGFloat = 24
 
     var body: some View {
         HStack(spacing: 3) {
-            ForEach(Array(heights.enumerated()), id: \.offset) { index, height in
+            ForEach(Array(weights.enumerated()), id: \.offset) { _, weight in
                 Capsule()
                     .fill(Theme.signal)
-                    .frame(width: 3, height: animating ? height : 6)
-                    .animation(
-                        .easeInOut(duration: 0.45)
-                            .repeatForever()
-                            .delay(Double(index) * 0.09),
-                        value: animating
-                    )
+                    .frame(width: 3, height: height(for: weight))
             }
         }
-        .frame(height: 24)
-        .onAppear { animating = true }
+        .frame(height: maxHeight)
+        .animation(.easeOut(duration: 0.12), value: level)
+    }
+
+    private func height(for weight: CGFloat) -> CGFloat {
+        minHeight + (maxHeight - minHeight) * CGFloat(level) * weight
     }
 }
 
 #Preview("Listening") {
-    NotchOverlay(state: .listening(partial: "the quick brown fox"))
+    NotchOverlay(state: .listening(partial: "the quick brown fox"), level: 0.7)
         .padding(40)
         .background(.gray)
 }

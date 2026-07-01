@@ -60,7 +60,7 @@ private struct OverlayHost: View {
     let model: DictationModel
 
     var body: some View {
-        NotchOverlay(state: model.state)
+        NotchOverlay(state: model.state, level: model.audioLevel)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .padding(.top, 6)
     }
