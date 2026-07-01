@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings: settings,
         vocabulary: vocabulary
     )
+    private lazy var historyWindow = HistoryWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         dictation.activate()
@@ -39,5 +40,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func openSettings() {
         settingsWindow.present()
+    }
+
+    func openHistory() {
+        historyWindow.present()
     }
 }

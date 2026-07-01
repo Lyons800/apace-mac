@@ -8,7 +8,11 @@ struct ApaceApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuContent(dictation: delegate.dictation, openSettings: delegate.openSettings)
+            MenuContent(
+                dictation: delegate.dictation,
+                openSettings: delegate.openSettings,
+                openHistory: delegate.openHistory
+            )
         } label: {
             Image(systemName: delegate.dictation.state.menuBarSymbol)
         }
@@ -20,6 +24,7 @@ struct ApaceApp: App {
 private struct MenuContent: View {
     let dictation: DictationModel
     let openSettings: () -> Void
+    let openHistory: () -> Void
 
     var body: some View {
         Text(dictation.state.menuBarTitle)
@@ -27,6 +32,7 @@ private struct MenuContent: View {
 
         Divider()
 
+        Button("History…", action: openHistory)
         Button("Settings…", action: openSettings)
             .keyboardShortcut(",")
 
