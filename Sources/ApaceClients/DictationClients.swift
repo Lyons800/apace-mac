@@ -8,16 +8,19 @@ public struct DictationClients: Sendable {
     public var transcriber: TranscriberClient
     public var hotkey: HotkeyClient
     public var inserter: TextInserterClient
+    public var processor: TextProcessorClient
 
     public init(
         audio: AudioCaptureClient,
         transcriber: TranscriberClient,
         hotkey: HotkeyClient,
-        inserter: TextInserterClient
+        inserter: TextInserterClient,
+        processor: TextProcessorClient = .passthrough
     ) {
         self.audio = audio
         self.transcriber = transcriber
         self.hotkey = hotkey
         self.inserter = inserter
+        self.processor = processor
     }
 }

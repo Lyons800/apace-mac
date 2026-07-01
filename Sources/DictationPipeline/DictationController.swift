@@ -105,7 +105,8 @@ public actor DictationController {
         stopCapture()
         let samples = clients.audio.stop()
         do {
-            let text = try await clients.transcriber.transcribe(samples)
+            let raw = try await clients.transcriber.transcribe(samples)
+            let text = await clients.processor.process(raw)
             apply(.finalTranscript(text))
             if case .inserting(let finalText) = state {
                 await clients.inserter.insert(finalText)

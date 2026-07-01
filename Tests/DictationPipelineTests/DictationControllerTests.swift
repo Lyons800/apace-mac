@@ -19,6 +19,19 @@ struct DictationControllerTests {
         #expect(recorder.stopCount == 1)
     }
 
+    @Test("The transcript is run through the processor before it's inserted")
+    func processesBeforeInserting() async {
+        let recorder = Recorder()
+        let controller = DictationController(
+            clients: makeClients(recorder: recorder, process: { $0.uppercased() })
+        )
+
+        await controller.handle(.startDictation)
+        await controller.handle(.stopDictation)
+
+        #expect(recorder.inserted == ["HELLO WORLD"])
+    }
+
     @Test("An empty transcript inserts nothing and returns to idle")
     func emptyTranscript() async {
         let recorder = Recorder()

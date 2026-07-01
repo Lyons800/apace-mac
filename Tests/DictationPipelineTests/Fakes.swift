@@ -31,6 +31,7 @@ func makeClients(
     startThrows: Bool = false,
     partials: [String] = [],
     transcribe: @escaping @Sendable ([Float]) async throws -> String = { _ in "hello world" },
+    process: @escaping @Sendable (String) -> String = { $0 },
     hotkey: HotkeyClient = HotkeyClient(intents: { AsyncStream { $0.finish() } })
 ) -> DictationClients {
     let audio = AudioCaptureClient(
@@ -57,12 +58,14 @@ func makeClients(
     )
 
     let inserter = TextInserterClient(insert: { recorder.append(inserted: $0) })
+    let processor = TextProcessorClient { process($0) }
 
     return DictationClients(
         audio: audio,
         transcriber: transcriber,
         hotkey: hotkey,
-        inserter: inserter
+        inserter: inserter,
+        processor: processor
     )
 }
 
