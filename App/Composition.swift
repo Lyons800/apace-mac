@@ -11,8 +11,18 @@ extension DictationClients {
         audio: .live,
         transcriber: .selected,
         hotkey: .live,
-        inserter: .live
+        inserter: .live,
+        processor: .live
     )
+}
+
+extension TextProcessorClient {
+    /// Cleans up the transcript before it's inserted. Today that's the user's custom
+    /// vocabulary, read fresh on every dictation so edits take effect immediately;
+    /// AI cleanup will compose onto this behind the same port.
+    static let live = TextProcessorClient { text in
+        VocabularyPreference.vocabulary.apply(to: text)
+    }
 }
 
 extension TranscriberClient {
