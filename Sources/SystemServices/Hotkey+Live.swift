@@ -37,6 +37,7 @@ final class HotkeyMonitor: @unchecked Sendable {
     private var eventTap: CFMachPort?
     private var runLoop: CFRunLoop?
     private var isPressed = false
+    private var isStopped = false
 
     init(keyCode: CGKeyCode, modifier: CGEventFlags) {
         self.keyCode = keyCode
@@ -55,23 +56,32 @@ final class HotkeyMonitor: @unchecked Sendable {
         return stream
     }
 
+    /// Creates the session tap. Returns nil until Accessibility is granted.
+    private func makeTap() -> CFMachPort? {
+        let mask = CGEventMask(1) << CGEventType.flagsChanged.rawValue
+        return CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .listenOnly,
+            eventsOfInterest: mask,
+            callback: hotkeyEventCallback,
+            userInfo: Unmanaged.passUnretained(self).toOpaque()
+        )
+    }
+
     /// Builds the tap, pumps its run loop, and blocks the dedicated thread until the
     /// loop is stopped from `stop()`.
     private func runTap() {
-        let mask = CGEventMask(1) << CGEventType.flagsChanged.rawValue
-        guard
-            let tap = CGEvent.tapCreate(
-                tap: .cgSessionEventTap,
-                place: .headInsertEventTap,
-                options: .listenOnly,
-                eventsOfInterest: mask,
-                callback: hotkeyEventCallback,
-                userInfo: Unmanaged.passUnretained(self).toOpaque()
-            )
-        else {
-            // No Accessibility permission yet — leave the stream open and quiet.
-            return
+        // The tap needs Accessibility. If it isn't granted yet the user may be enabling
+        // it right now, so poll until we can create it rather than giving up — that's
+        // what lets the hotkey start working the moment permission lands, no restart.
+        var tap = makeTap()
+        while tap == nil {
+            if lock.withLock({ isStopped }) { return }
+            Thread.sleep(forTimeInterval: 1.5)
+            tap = makeTap()
         }
+        guard let tap else { return }
 
         let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
         let loop = CFRunLoopGetCurrent()
@@ -117,7 +127,8 @@ final class HotkeyMonitor: @unchecked Sendable {
 
     private func stop() {
         let (tap, loop, continuation) = lock.withLock {
-            (eventTap, runLoop, self.continuation)
+            isStopped = true
+            return (eventTap, runLoop, self.continuation)
         }
         if let tap {
             CGEvent.tapEnable(tap: tap, enable: false)
