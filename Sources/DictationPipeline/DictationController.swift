@@ -18,16 +18,26 @@ public actor DictationController {
     /// The live preview stream is best-effort and runs for the duration of a single
     /// listening session; cancelling it is how we tear the preview down on stop.
     private var partialsTask: Task<Void, Never>?
+    /// Reads the capture stream to sample the microphone level and forward chunks on
+    /// to the transcriber.
+    private var captureTask: Task<Void, Never>?
 
     private let continuation: AsyncStream<DictationState>.Continuation
+    private let levelContinuation: AsyncStream<Double>.Continuation
 
     /// Every state transition, in order, starting with `.idle`. The UI republishes
     /// this onto an `@Observable` store; nothing outside the actor mutates state.
     public nonisolated let states: AsyncStream<DictationState>
 
+    /// A normalized 0...1 microphone level sampled while listening, for the waveform.
+    /// It's a separate channel from ``states`` because it changes far too often to be
+    /// domain state — the UI throttles it, the state machine never sees it.
+    public nonisolated let levels: AsyncStream<Double>
+
     public init(clients: DictationClients) {
         self.clients = clients
         (states, continuation) = AsyncStream.makeStream()
+        (levels, levelContinuation) = AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(4))
         continuation.yield(.idle)
     }
 
@@ -70,8 +80,18 @@ public actor DictationController {
         apply(.startRequested)
         do {
             let audio = try clients.audio.start()
+            // Tee the capture stream: sample the level for the waveform here, and
+            // forward each chunk on to the transcriber's preview.
+            let (forTranscriber, forward) = AsyncStream<AudioChunk>.makeStream()
+            captureTask = Task { [levelContinuation, forward] in
+                for await chunk in audio {
+                    levelContinuation.yield(Self.level(of: chunk.samples))
+                    forward.yield(chunk)
+                }
+                forward.finish()
+            }
             partialsTask = Task { [weak self] in
-                await self?.streamPartials(from: audio)
+                await self?.streamPartials(from: forTranscriber)
             }
         } catch {
             cleanUp()
@@ -82,7 +102,7 @@ public actor DictationController {
     private func finish() async {
         guard isListening else { return }
         apply(.stopRequested)
-        partialsTask?.cancel()
+        stopCapture()
         let samples = clients.audio.stop()
         do {
             let text = try await clients.transcriber.transcribe(samples)
@@ -123,8 +143,30 @@ public actor DictationController {
     }
 
     private func cleanUp() {
-        partialsTask?.cancel()
+        stopCapture()
         _ = clients.audio.stop()
+    }
+
+    /// Tears down the capture and preview tasks and drops the waveform back to silence.
+    private func stopCapture() {
+        partialsTask?.cancel()
+        captureTask?.cancel()
+        levelContinuation.yield(0)
+    }
+
+    /// Converts a chunk of samples to a normalized 0...1 loudness for the waveform.
+    /// Speech RMS is tiny (~0.001–0.05), so a linear scale would sit on the floor;
+    /// mapping through decibels spreads quiet speech across the visible range.
+    static func level(of samples: [Float]) -> Double {
+        guard !samples.isEmpty else { return 0 }
+        var sumOfSquares: Float = 0
+        for sample in samples {
+            sumOfSquares += sample * sample
+        }
+        let rms = (sumOfSquares / Float(samples.count)).squareRoot()
+        let decibels = 20 * log10(max(rms, 1e-7))
+        let normalized = (decibels + 60) / 60
+        return Double(min(max(normalized, 0), 1))
     }
 
     private var isListening: Bool {
