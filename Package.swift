@@ -20,7 +20,10 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "Features", targets: ["Features"]),
-        .library(name: "Adapters", targets: ["AudioCapture", "Transcription", "SystemServices"]),
+        .library(
+            name: "Adapters",
+            targets: ["AudioCapture", "Transcription", "SystemServices", "TextCleanup"]
+        ),
         .library(name: "ApaceKit", targets: ["ApaceCore", "ApaceClients", "DictationPipeline"]),
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
     ],
@@ -36,6 +39,7 @@ let package = Package(
         .target(name: "AudioCapture", dependencies: ["ApaceClients"]),
         .target(name: "Transcription", dependencies: ["ApaceClients"]),
         .target(name: "SystemServices", dependencies: ["ApaceClients"]),
+        .target(name: "TextCleanup", dependencies: ["ApaceClients"]),
 
         // MARK: UI
         .target(
