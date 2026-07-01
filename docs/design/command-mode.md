@@ -3,8 +3,11 @@
 Status: proposed (milestone M7)
 
 Command mode lets you *edit and act* by voice, not just insert text: "delete that",
-"make this a bullet list", "rewrite this more formally", "send it". This document sets
-the design so the milestone can be built without re-litigating the fundamentals.
+"make this a bullet list", "rewrite this more formally", "send it". It has three layers
+of capability the user opts into in order — on-device commands, an LLM text layer, and
+an optional screen-vision layer — and it gets smarter over time through **memories** and
+**app-specific behaviour**. This document sets the design so the milestone can be built
+without re-litigating the fundamentals.
 
 ## Principles
 
@@ -43,6 +46,14 @@ or doesn't match a Tier-0 command. Free-form transforms, generation, translation
 Routing is deterministic: match the first verb against the Tier-0 grammar; only on a
 miss (or an explicit LLM verb) do we spend an LLM call.
 
+**Tier 2 — screen vision (opt-in, off by default).** When the user explicitly enables
+it, command mode can capture the current screen the instant they speak, so a command can
+act on what's actually in front of them — "add this to my calendar" from a chat, "reply
+that I'm in", "what's this error and how do I fix it". This is the most powerful and the
+least private layer: a screenshot leaves the device to the user's vision-capable model.
+It is therefore **strictly opt-in, per-use visible, and never the default** — the pure
+on-device dictation and Tier-0/Tier-1 command paths always work with it switched off.
+
 ## Selection semantics
 
 Command mode operates on the current selection if one exists (replace it), otherwise on
@@ -74,6 +85,27 @@ Profiles ship as editable files so the community can add app packs. Built-ins:
 Learn from superwhisper's known UX bug: an auto-selected profile must always be
 manually overridable, with a way to switch back.
 
+## Memories
+
+Command mode gets better the more it's used by remembering durable facts about the user
+and their world, so the LLM layers don't start cold every time. A **memory** is a short,
+user-owned piece of context — "my padel crew plays Fridays at Quinta do Peru", "sign
+emails as *Oisin*", "prefer British spelling", "our repo is Lyons800/apace". Memories are:
+
+- **Local and user-owned.** Stored on-device, viewable and editable in settings, deletable
+  individually. Never uploaded anywhere except, when relevant, as part of a Tier-1/Tier-2
+  LLM request the user already triggered.
+- **Captured explicitly or offered, never silently harvested.** The user can add a memory
+  by voice ("remember that…") or in settings; the agent may *suggest* a memory after a
+  command and ask to save it, but doesn't record silently.
+- **Retrieved by relevance.** Only memories relevant to the current command/app are
+  injected into the prompt, keeping requests small and private.
+- **Scoped.** A memory can be global or bound to an app profile (an IDE memory of your
+  stack, a Mail memory of your signature), composing with the app-specific ladder above.
+
+Memories are what turn command mode from a stateless tool into something that feels like
+it knows you — a differentiator none of the competitors currently offer.
+
 ## Privacy
 
 - ASR and Tier-0 commands never touch the network; the app is fully functional offline
@@ -95,6 +127,10 @@ manually overridable, with a way to switch back.
   editable files, with manual override and switch-back.
 - **Phase 3** — the Tier-1 LLM layer (BYO key): reserved verbs, per-app prompt
   injection, egress consent + boundary UI, Keychain, redaction.
-- **Phase 4** — full agent: keystroke/action commands and structured actions (create
+- **Phase 4** — memories: the local memory store, voice/settings capture, suggest-to-save,
+  relevance retrieval into the LLM layers, and app-scoped memories.
+- **Phase 5** — screen vision (opt-in): screenshot capture on command, a vision-capable
+  model, cross-app actions, with the per-use egress indicator and an off-by-default switch.
+- **Phase 6** — full agent: keystroke/action commands and structured actions (create
   issue, capture note), each hard-gated with a confirm step for anything that sends,
   spends, or deletes.
