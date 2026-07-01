@@ -9,7 +9,7 @@ import SystemServices
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let dictation = DictationModel(clients: .live)
     let permissions = PermissionsModel(client: .live)
-    let settings = SettingsStore()
+    let settings = SettingsStore(credentials: .live)
     let vocabulary = VocabularyStore()
 
     private var overlay: NotchOverlayController?

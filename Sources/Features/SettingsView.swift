@@ -29,8 +29,15 @@ public struct SettingsView: View {
                 Toggle("Clean up dictation with AI", isOn: $settings.aiCleanupEnabled)
                 Text(
                     "Removes filler and fixes punctuation on-device with Apple "
-                        + "Intelligence. Does nothing where it's unavailable — your own API "
-                        + "key as a fallback is coming."
+                        + "Intelligence when it's available."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                SecureField("Anthropic API key", text: $settings.anthropicAPIKey)
+                Text(
+                    "Optional fallback for Macs without Apple Intelligence. Stored in "
+                        + "your Keychain and sent to Anthropic only when cleanup runs."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)

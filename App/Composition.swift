@@ -20,15 +20,19 @@ extension DictationClients {
 extension TextProcessorClient {
     /// Cleans up the transcript before it's inserted, reading both preferences fresh on
     /// every dictation so changes take effect immediately: optional AI cleanup first
-    /// (when the user has enabled it), then the user's custom vocabulary, which gets the
-    /// final say on exact spellings.
+    /// (on-device, falling back to the user's API key) when enabled, then the user's
+    /// custom vocabulary, which gets the final say on exact spellings.
     static let live = TextProcessorClient { text in
         var result = text
         if CleanupPreference.isEnabled {
-            result = await appleIntelligence.process(result)
+            result = await cleanup.process(result)
         }
         return VocabularyPreference.vocabulary.apply(to: result)
     }
+
+    private static let cleanup = TextProcessorClient.aiCleanup(
+        apiKey: { CredentialStore.live.load(CredentialStore.anthropicAccount) }
+    )
 }
 
 extension TranscriberClient {
