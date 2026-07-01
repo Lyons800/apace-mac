@@ -11,7 +11,14 @@ extension TextProcessorClient {
     }
 }
 
-private enum AppleIntelligenceCleaner {
+enum AppleIntelligenceCleaner {
+    /// Whether on-device cleanup can actually run here (macOS 26 with Apple
+    /// Intelligence enabled). Used to decide whether to fall back to a remote model.
+    static var isAvailable: Bool {
+        guard #available(macOS 26.0, *) else { return false }
+        return SystemLanguageModel.default.isAvailable
+    }
+
     static func clean(_ text: String) async -> String {
         guard !text.isEmpty else { return text }
         guard #available(macOS 26.0, *) else { return text }
