@@ -10,10 +10,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let dictation = DictationModel(clients: .live)
     let permissions = PermissionsModel(client: .live)
     let settings = SettingsStore()
+    let vocabulary = VocabularyStore()
 
     private var overlay: NotchOverlayController?
     private var onboarding: OnboardingWindowController?
-    private lazy var settingsWindow = SettingsWindowController(settings: settings)
+    private lazy var settingsWindow = SettingsWindowController(
+        settings: settings,
+        vocabulary: vocabulary
+    )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         dictation.activate()
