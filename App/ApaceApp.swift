@@ -8,23 +8,27 @@ struct ApaceApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuContent(dictation: delegate.dictation)
+            MenuContent(dictation: delegate.dictation, openSettings: delegate.openSettings)
         } label: {
             Image(systemName: delegate.dictation.state.menuBarSymbol)
         }
     }
 }
 
-/// The menu shown from the status item. The notch overlay in milestone M3 becomes the
-/// primary surface; this stays as the always-available controls and status.
+/// The menu shown from the status item. The notch overlay is the primary surface; this
+/// stays as the always-available controls and status.
 private struct MenuContent: View {
     let dictation: DictationModel
+    let openSettings: () -> Void
 
     var body: some View {
         Text(dictation.state.menuBarTitle)
             .font(.headline)
 
         Divider()
+
+        Button("Settings…", action: openSettings)
+            .keyboardShortcut(",")
 
         Button("Quit Apace") {
             NSApplication.shared.terminate(nil)
