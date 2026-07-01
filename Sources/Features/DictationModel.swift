@@ -15,6 +15,9 @@ import Observation
 public final class DictationModel {
     public private(set) var state: DictationState = .idle
 
+    /// Normalized 0...1 microphone level while listening, for the waveform.
+    public private(set) var audioLevel: Double = 0
+
     private let controller: DictationController
     private let tasks = TaskBag()
     private var isActive = false
@@ -39,6 +42,16 @@ public final class DictationModel {
                 }
             }
         )
+
+        let levels = controller.levels
+        tasks.add(
+            Task { [weak self] in
+                for await level in levels {
+                    self?.audioLevel = level
+                }
+            }
+        )
+
         tasks.add(
             Task { [controller] in
                 await controller.run()
