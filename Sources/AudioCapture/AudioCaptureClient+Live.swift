@@ -15,6 +15,7 @@ extension AudioCaptureClient {
         let recorder = MicrophoneRecorder()
         return AudioCaptureClient(
             start: { try recorder.start() },
+            samples: { recorder.currentSamples() },
             stop: { recorder.stop() }
         )
     }()
@@ -75,6 +76,11 @@ final class MicrophoneRecorder: @unchecked Sendable {
         engine.prepare()
         try engine.start()
         return stream
+    }
+
+    /// A copy of everything captured so far, for the live-preview re-transcription.
+    func currentSamples() -> [Float] {
+        lock.withLock { recorded }
     }
 
     func stop() -> [Float] {

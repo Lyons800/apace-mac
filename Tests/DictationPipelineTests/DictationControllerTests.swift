@@ -107,17 +107,21 @@ struct DictationControllerTests {
         #expect(recorder.inserted == ["hello world"])
     }
 
-    @Test("Streaming partials drive the live listening preview")
-    func streamingPartials() async {
+    @Test("The live preview re-transcribes the recent audio while listening")
+    func livePreview() async {
         let recorder = Recorder()
         let controller = DictationController(
-            clients: makeClients(recorder: recorder, partials: ["hel", "hello"])
+            clients: makeClients(
+                recorder: recorder,
+                samples: Array(repeating: 0.1, count: 10_000),
+                transcribe: { _ in "live preview" }
+            )
         )
 
         await controller.handle(.startDictation)
 
         let reachedPreview = await waitUntil {
-            await controller.currentState == .listening(partial: "hello")
+            await controller.currentState == .listening(partial: "live preview")
         }
         #expect(reachedPreview)
     }

@@ -10,19 +10,25 @@ import Foundation
 
 /// Captures microphone audio as 16 kHz mono chunks.
 public struct AudioCaptureClient: Sendable {
-    /// Begins capturing. The returned stream is the *preview* channel: it yields
-    /// converted chunks as they arrive and drops the oldest under back-pressure, so a
-    /// slow consumer never stalls the real-time audio thread.
+    /// Begins capturing. The returned stream is the level channel: it yields converted
+    /// chunks as they arrive and drops the oldest under back-pressure, so a slow
+    /// consumer never stalls the real-time audio thread.
     public var start: @Sendable () throws -> AsyncStream<AudioChunk>
+    /// A snapshot of everything recorded so far, without stopping. The coordinator uses
+    /// this to re-transcribe the recent audio for a live preview that — unlike a
+    /// streaming recogniser — doesn't reset when the speaker pauses.
+    public var samples: @Sendable () -> [Float]
     /// Stops capturing and returns the complete loss-less buffer for the final pass —
-    /// this, not the preview stream, is what gets transcribed and inserted.
+    /// this is what gets transcribed and inserted.
     public var stop: @Sendable () -> [Float]
 
     public init(
         start: @escaping @Sendable () throws -> AsyncStream<AudioChunk>,
+        samples: @escaping @Sendable () -> [Float],
         stop: @escaping @Sendable () -> [Float]
     ) {
         self.start = start
+        self.samples = samples
         self.stop = stop
     }
 }

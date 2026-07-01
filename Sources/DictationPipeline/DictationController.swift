@@ -15,11 +15,10 @@ public actor DictationController {
     private let machine = DictationStateMachine()
     private var state: DictationState = .idle
 
-    /// The live preview stream is best-effort and runs for the duration of a single
-    /// listening session; cancelling it is how we tear the preview down on stop.
-    private var partialsTask: Task<Void, Never>?
-    /// Reads the capture stream to sample the microphone level and forward chunks on
-    /// to the transcriber.
+    /// Re-transcribes the recent audio on a cadence to drive the live preview; runs for
+    /// a single listening session and is cancelled on stop.
+    private var previewTask: Task<Void, Never>?
+    /// Samples the microphone level off the capture stream for the waveform.
     private var captureTask: Task<Void, Never>?
 
     private let continuation: AsyncStream<DictationState>.Continuation
@@ -80,18 +79,13 @@ public actor DictationController {
         apply(.startRequested)
         do {
             let audio = try clients.audio.start()
-            // Tee the capture stream: sample the level for the waveform here, and
-            // forward each chunk on to the transcriber's preview.
-            let (forTranscriber, forward) = AsyncStream<AudioChunk>.makeStream()
-            captureTask = Task { [levelContinuation, forward] in
+            captureTask = Task { [levelContinuation] in
                 for await chunk in audio {
                     levelContinuation.yield(Self.level(of: chunk.samples))
-                    forward.yield(chunk)
                 }
-                forward.finish()
             }
-            partialsTask = Task { [weak self] in
-                await self?.streamPartials(from: forTranscriber)
+            previewTask = Task { [weak self] in
+                await self?.runPreview()
             }
         } catch {
             cleanUp()
@@ -123,16 +117,30 @@ public actor DictationController {
         apply(.cancelled)
     }
 
-    /// Forwards volatile partials to the state machine for the live preview. Errors
-    /// here are swallowed on purpose: the preview is disposable, and the accurate
-    /// final pass in ``finish()`` is what the user actually gets.
-    private func streamPartials(from audio: AsyncStream<AudioChunk>) async {
-        do {
-            for try await update in clients.transcriber.stream(audio) where !update.isFinal {
-                apply(.partialTranscript(update.text))
-            }
-        } catch {
-            // Preview only — ignore and let the final pass stand.
+    /// Drives the live preview by re-transcribing the recent audio on a cadence. Unlike
+    /// a streaming recogniser this never finalises (and resets) when the speaker pauses:
+    /// a silent tick is simply skipped, so the last preview stays put. Best-effort — the
+    /// accurate final pass in ``finish()`` is what the user actually gets.
+    private func runPreview() async {
+        var lastSampleCount = 0
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(Self.previewIntervalMS))
+            if Task.isCancelled { return }
+
+            let samples = clients.audio.samples()
+            guard samples.count > 8_000 else { continue }  // need ~0.5s of audio
+            guard samples.count - lastSampleCount > 1_600 else { continue }  // new audio
+            lastSampleCount = samples.count
+            guard Self.isLoudEnough(samples) else { continue }  // hold through a pause
+
+            // Cap the preview to the recent window so per-tick latency stays bounded;
+            // the final pass on stop still uses the whole recording.
+            let window =
+                samples.count > Self.previewWindowSamples
+                ? Array(samples.suffix(Self.previewWindowSamples)) : samples
+            guard let text = try? await clients.transcriber.transcribe(window), !text.isEmpty
+            else { continue }
+            apply(.partialTranscript(text))
         }
     }
 
@@ -150,9 +158,25 @@ public actor DictationController {
 
     /// Tears down the capture and preview tasks and drops the waveform back to silence.
     private func stopCapture() {
-        partialsTask?.cancel()
+        previewTask?.cancel()
         captureTask?.cancel()
         levelContinuation.yield(0)
+    }
+
+    static let previewIntervalMS = 700
+    static let previewWindowSamples = 192_000  // ~12s at 16 kHz
+
+    /// Whether the tail of the buffer carries speech energy — used to hold the preview
+    /// steady through a pause instead of re-transcribing silence.
+    static func isLoudEnough(_ samples: [Float]) -> Bool {
+        let tail = samples.suffix(4_000)  // ~0.25s
+        guard !tail.isEmpty else { return false }
+        var sumOfSquares: Float = 0
+        for sample in tail {
+            sumOfSquares += sample * sample
+        }
+        let rms = (sumOfSquares / Float(tail.count)).squareRoot()
+        return 20 * log10(max(rms, 1e-7)) > -45
     }
 
     /// Converts a chunk of samples to a normalized 0...1 loudness for the waveform.

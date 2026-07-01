@@ -29,7 +29,7 @@ final class Recorder: @unchecked Sendable {
 func makeClients(
     recorder: Recorder,
     startThrows: Bool = false,
-    partials: [String] = [],
+    samples: [Float] = [],
     transcribe: @escaping @Sendable ([Float]) async throws -> String = { _ in "hello world" },
     process: @escaping @Sendable (String) -> String = { $0 },
     hotkey: HotkeyClient = HotkeyClient(intents: { AsyncStream { $0.finish() } })
@@ -39,6 +39,7 @@ func makeClients(
             if startThrows { throw FakeError.microphoneUnavailable }
             return AsyncStream { $0.finish() }
         },
+        samples: { samples },
         stop: {
             recorder.recordStop()
             return [0.1, 0.2, 0.3]
@@ -46,14 +47,7 @@ func makeClients(
     )
 
     let transcriber = TranscriberClient(
-        stream: { _ in
-            AsyncThrowingStream { continuation in
-                for partial in partials {
-                    continuation.yield(ASRUpdate(text: partial, isFinal: false))
-                }
-                continuation.finish()
-            }
-        },
+        stream: { _ in AsyncThrowingStream { $0.finish() } },
         transcribe: transcribe
     )
 
@@ -73,9 +67,9 @@ func makeClients(
 /// streaming-preview path, where partials are applied on a background task; every
 /// other path is awaited directly and needs no polling.
 func waitUntil(_ predicate: @Sendable () async -> Bool) async -> Bool {
-    for _ in 0..<200 {
+    for _ in 0..<400 {
         if await predicate() { return true }
-        try? await Task.sleep(for: .milliseconds(5))
+        try? await Task.sleep(for: .milliseconds(10))
     }
     return await predicate()
 }
