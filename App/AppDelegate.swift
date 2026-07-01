@@ -27,6 +27,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.onboarding = onboarding
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        // The user may have just toggled a grant in System Settings; re-check so
+        // onboarding notices without them having to reopen it.
+        permissions.refresh()
+    }
+
     func openSettings() {
         settingsWindow.present()
     }
