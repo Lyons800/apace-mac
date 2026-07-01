@@ -10,6 +10,9 @@ options:
 packages:
   ApaceKit:
     path: .
+  DynamicNotchKit:
+    url: https://github.com/MrKai77/DynamicNotchKit
+    exactVersion: 1.1.0
 
 targets:
   Apace:
@@ -26,6 +29,7 @@ targets:
         product: ApaceKit
       - package: ApaceKit
         product: DesignSystem
+      - package: DynamicNotchKit
     settings:
       base:
         PRODUCT_NAME: Apace
