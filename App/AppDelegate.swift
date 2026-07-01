@@ -8,8 +8,13 @@ import Features
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let dictation = DictationModel(clients: .live)
+    private var overlay: NotchOverlayController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         dictation.activate()
+
+        let overlay = NotchOverlayController(model: dictation)
+        overlay.present()
+        self.overlay = overlay
     }
 }

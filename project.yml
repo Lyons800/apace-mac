@@ -24,6 +24,8 @@ targets:
         product: Adapters
       - package: ApaceKit
         product: ApaceKit
+      - package: ApaceKit
+        product: DesignSystem
     settings:
       base:
         PRODUCT_NAME: Apace
