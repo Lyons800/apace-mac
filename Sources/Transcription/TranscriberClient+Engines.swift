@@ -2,28 +2,33 @@ import ApaceClients
 import ApaceCore
 
 extension TranscriberClient {
-    /// Resolves an engine choice to a concrete client.
-    ///
-    /// Apple is wired up today; Whisper and Parakeet are declared but not yet
-    /// integrated, so they resolve to a client that fails clearly. That way selecting
-    /// an engine that isn't ready surfaces a real, recoverable error instead of
-    /// silently transcribing nothing.
+    /// Resolves an engine choice to a concrete client. All three engines are wired up:
+    /// Apple's built-in recogniser, Whisper (WhisperKit), and Parakeet (FluidAudio).
+    /// Whisper and Parakeet download their model on first use.
     public static func make(for engine: TranscriptionEngine) -> TranscriberClient {
         switch engine {
         case .apple: apple
-        case .whisper, .parakeet: unavailable(engine)
+        case .whisper: whisperKit
+        case .parakeet: parakeet
         }
     }
 
-    /// A client that reports a specific engine as unavailable on both channels.
-    static func unavailable(_ engine: TranscriptionEngine) -> TranscriberClient {
-        TranscriberClient(
-            stream: { _ in
-                AsyncThrowingStream {
-                    $0.finish(throwing: TranscriptionError.engineUnavailable(engine))
-                }
-            },
-            transcribe: { _ in throw TranscriptionError.engineUnavailable(engine) }
-        )
+    /// Warms up an engine's model in the background so the first dictation is instant.
+    public static func preload(_ engine: TranscriptionEngine) {
+        switch engine {
+        case .apple: break
+        case .whisper: Task { await WhisperKitEngine.shared.preload() }
+        case .parakeet: Task { await ParakeetEngine.shared.preload() }
+        }
     }
+
+    static let parakeet = TranscriberClient(
+        stream: { _ in AsyncThrowingStream { $0.finish() } },
+        transcribe: { try await ParakeetEngine.shared.transcribe($0) }
+    )
+
+    static let whisperKit = TranscriberClient(
+        stream: { _ in AsyncThrowingStream { $0.finish() } },
+        transcribe: { try await WhisperKitEngine.shared.transcribe($0) }
+    )
 }

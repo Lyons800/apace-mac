@@ -12,8 +12,10 @@ public enum TranscriptionEngine: String, CaseIterable, Sendable, Codable {
     /// NVIDIA Parakeet via FluidAudio. Fast; downloads a model.
     case parakeet
 
-    /// The engine used until the user picks another.
-    public static let `default` = TranscriptionEngine.apple
+    /// The engine used until the user picks another. Parakeet is the default because
+    /// it's the strongest on-device option — fast and accurate, and it transcribes the
+    /// whole utterance without splitting on pauses.
+    public static let `default` = TranscriptionEngine.parakeet
 
     /// Name shown to the user.
     public var displayName: String {

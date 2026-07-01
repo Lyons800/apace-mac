@@ -27,6 +27,12 @@ let package = Package(
         .library(name: "ApaceKit", targets: ["ApaceCore", "ApaceClients", "DictationPipeline"]),
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
     ],
+    dependencies: [
+        // On-device ASR engines. Pinned to the versions the previous app shipped so
+        // the integration is against a known-good API surface.
+        .package(url: "https://github.com/argmaxinc/WhisperKit", exact: "0.14.1"),
+        .package(url: "https://github.com/FluidInference/FluidAudio", exact: "0.15.4"),
+    ],
     targets: [
         // MARK: Domain
         .target(name: "ApaceCore"),
@@ -37,7 +43,14 @@ let package = Package(
 
         // MARK: Infrastructure (live adapters)
         .target(name: "AudioCapture", dependencies: ["ApaceClients"]),
-        .target(name: "Transcription", dependencies: ["ApaceClients"]),
+        .target(
+            name: "Transcription",
+            dependencies: [
+                "ApaceClients",
+                .product(name: "WhisperKit", package: "WhisperKit"),
+                .product(name: "FluidAudio", package: "FluidAudio"),
+            ]
+        ),
         .target(name: "SystemServices", dependencies: ["ApaceClients"]),
         .target(name: "TextCleanup", dependencies: ["ApaceClients"]),
 

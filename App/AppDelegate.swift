@@ -1,6 +1,8 @@
+import ApaceClients
 import AppKit
 import Features
 import SystemServices
+import Transcription
 
 /// Owns the app's long-lived models and brings them to life once the app has finished
 /// launching. Keeping these here (rather than as `@State` on the `App`) gives them a
@@ -22,6 +24,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         dictation.activate()
+
+        // Warm up the chosen engine's model so the first dictation doesn't wait on a
+        // download.
+        TranscriberClient.preload(EnginePreference.engine)
 
         let overlay = NotchOverlayController(model: dictation)
         overlay.present()

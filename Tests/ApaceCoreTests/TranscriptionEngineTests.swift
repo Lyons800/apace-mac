@@ -18,9 +18,9 @@ struct TranscriptionEngineTests {
         #expect(TranscriptionEngine.parakeet.requiresModelDownload)
     }
 
-    @Test("Apple is the default engine")
+    @Test("Parakeet is the default engine")
     func defaultEngine() {
-        #expect(TranscriptionEngine.default == .apple)
+        #expect(TranscriptionEngine.default == .parakeet)
     }
 
     @Test("The selection round-trips through its raw value for persistence")
