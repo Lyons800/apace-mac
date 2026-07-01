@@ -39,6 +39,11 @@ public final class DictationModel {
             Task { [weak self] in
                 for await state in transitions {
                     self?.state = state
+                    // A successful dictation reaches `.inserting` with the final text;
+                    // record it in history as it's inserted.
+                    if case .inserting(let text) = state {
+                        TranscriptHistory.append(HistoryEntry(text: text, date: Date()))
+                    }
                 }
             }
         )
