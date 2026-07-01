@@ -163,8 +163,11 @@ public actor DictationController {
         levelContinuation.yield(0)
     }
 
-    static let previewIntervalMS = 700
-    static let previewWindowSamples = 192_000  // ~12s at 16 kHz
+    // Snappier live preview: tick more often over a shorter window so each
+    // re-transcription is fast. The preview only needs the latest words — the accurate
+    // final pass on release still uses the whole recording.
+    static let previewIntervalMS = 350
+    static let previewWindowSamples = 96_000  // ~6s at 16 kHz
 
     /// Whether the tail of the buffer carries speech energy — used to hold the preview
     /// steady through a pause instead of re-transcribing silence.
