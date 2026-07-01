@@ -1,14 +1,17 @@
 import AppKit
 import Features
+import SystemServices
 
-/// Owns the app's single ``DictationModel`` and brings it to life once the app has
-/// finished launching. Keeping this in the delegate (rather than a `@State` on the
-/// `App`) gives the model a stable lifetime independent of SwiftUI re-evaluating the
-/// scene.
+/// Owns the app's long-lived models and brings them to life once the app has finished
+/// launching. Keeping these here (rather than as `@State` on the `App`) gives them a
+/// stable lifetime independent of SwiftUI re-evaluating the scene.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let dictation = DictationModel(clients: .live)
+    let permissions = PermissionsModel(client: .live)
+
     private var overlay: NotchOverlayController?
+    private var onboarding: OnboardingWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         dictation.activate()
@@ -16,5 +19,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let overlay = NotchOverlayController(model: dictation)
         overlay.present()
         self.overlay = overlay
+
+        let onboarding = OnboardingWindowController(permissions: permissions)
+        onboarding.presentIfNeeded()
+        self.onboarding = onboarding
     }
 }
