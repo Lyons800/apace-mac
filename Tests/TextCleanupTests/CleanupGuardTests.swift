@@ -33,4 +33,31 @@ struct CleanupGuardTests {
         let result = CleanupGuard.preserve(original: "hi", cleaned: "Hello!")
         #expect(result == "Hello!")
     }
+
+    @Test("Strips a chatty preamble")
+    func stripsPreamble() {
+        let result = CleanupGuard.preserve(
+            original: "does this work",
+            cleaned: "Sure! Here's a cleaned-up version of your text: Does this work?"
+        )
+        #expect(result == "Does this work?")
+    }
+
+    @Test("Strips a preamble on its own line")
+    func stripsPreambleNewline() {
+        let result = CleanupGuard.stripPreamble("Here is the cleaned text:\n\nDoes this work?")
+        #expect(result == "Does this work?")
+    }
+
+    @Test("Leaves a genuine colon alone")
+    func keepsRealColon() {
+        let result = CleanupGuard.stripPreamble("Meeting notes: buy milk and eggs")
+        #expect(result == "Meeting notes: buy milk and eggs")
+    }
+
+    @Test("Strips wrapping quotes")
+    func stripsQuotes() {
+        let result = CleanupGuard.stripPreamble("\"Does this work?\"")
+        #expect(result == "Does this work?")
+    }
 }
