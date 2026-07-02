@@ -19,7 +19,7 @@ final class SettingsWindowController {
         if window == nil {
             let window = NSWindow(
                 contentViewController: NSHostingController(
-                    rootView: SettingsView(settings: settings, vocabulary: vocabulary)
+                    rootView: SettingsRootView(settings: settings, vocabulary: vocabulary)
                 )
             )
             window.title = "Apace Settings"
