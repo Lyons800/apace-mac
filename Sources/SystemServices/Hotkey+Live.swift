@@ -14,8 +14,10 @@ extension HotkeyClient {
     /// for getting the grant.
     public static let live = HotkeyClient(intents: { HotkeyMonitor.rightOption.intents() })
 
-    /// Command mode's push-to-talk, on Right Command so it doesn't clash with dictation
-    /// on Right Option.
+    /// Command mode's push-to-talk, on Right Command. Because Command is also the
+    /// shortcut modifier, this monitor waits a beat before activating and cancels the
+    /// moment any other key is pressed — so Cmd-C, Cmd-Shift-4 and friends never trigger
+    /// it. Hold Right Command *on its own* to speak a command.
     public static let command = HotkeyClient(intents: { HotkeyMonitor.rightCommand.intents() })
 }
 
@@ -35,22 +37,38 @@ final class HotkeyMonitor: @unchecked Sendable {
 
     static let rightCommand = HotkeyMonitor(
         keyCode: CGKeyCode(kVK_RightCommand),
-        modifier: .maskCommand
+        modifier: .maskCommand,
+        startDelay: 0.3,
+        cancelOnKeyDown: true
     )
 
     private let keyCode: CGKeyCode
     private let modifier: CGEventFlags
+    /// Wait this long, holding the key alone, before activating. Zero = immediate.
+    private let startDelay: TimeInterval
+    /// Cancel a pending/active session if any other key is pressed (i.e. it's a shortcut).
+    private let cancelOnKeyDown: Bool
     private let lock = NSLock()
+    private let delayQueue = DispatchQueue(label: "so.apace.hotkey.delay")
 
     private var continuation: AsyncStream<HotkeyIntent>.Continuation?
     private var eventTap: CFMachPort?
     private var runLoop: CFRunLoop?
     private var isPressed = false
     private var isStopped = false
+    private var pendingStart: DispatchWorkItem?
+    private var isActive = false
 
-    init(keyCode: CGKeyCode, modifier: CGEventFlags) {
+    init(
+        keyCode: CGKeyCode,
+        modifier: CGEventFlags,
+        startDelay: TimeInterval = 0,
+        cancelOnKeyDown: Bool = false
+    ) {
         self.keyCode = keyCode
         self.modifier = modifier
+        self.startDelay = startDelay
+        self.cancelOnKeyDown = cancelOnKeyDown
     }
 
     func intents() -> AsyncStream<HotkeyIntent> {
@@ -67,7 +85,10 @@ final class HotkeyMonitor: @unchecked Sendable {
 
     /// Creates the session tap. Returns nil until Accessibility is granted.
     private func makeTap() -> CFMachPort? {
-        let mask = CGEventMask(1) << CGEventType.flagsChanged.rawValue
+        var mask = CGEventMask(1) << CGEventType.flagsChanged.rawValue
+        if cancelOnKeyDown {
+            mask |= CGEventMask(1) << CGEventType.keyDown.rawValue
+        }
         return CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
@@ -119,24 +140,92 @@ final class HotkeyMonitor: @unchecked Sendable {
             return
         }
 
+        // Any other key pressed while our modifier is held means the user is doing a
+        // shortcut, not holding the key on its own — abort.
+        if cancelOnKeyDown, type == .keyDown {
+            cancelPending()
+            return
+        }
+
         guard type == .flagsChanged,
             event.getIntegerValueField(.keyboardEventKeycode) == Int64(keyCode)
         else { return }
 
         let pressed = event.flags.contains(modifier)
+
+        if startDelay > 0 {
+            handleDelayed(pressed: pressed)
+        } else {
+            handleImmediate(pressed: pressed)
+        }
+    }
+
+    /// The simple path: press starts, release stops, right away.
+    private func handleImmediate(pressed: Bool) {
         let intent: HotkeyIntent? = lock.withLock {
             guard pressed != isPressed else { return nil }
             isPressed = pressed
             return pressed ? .startDictation : .stopDictation
         }
         if let intent {
-            lock.withLock { continuation }?.yield(intent)
+            yield(intent)
         }
+    }
+
+    /// The guarded path: only activate after holding the key alone past `startDelay`,
+    /// and cancel if released early or interrupted by another key.
+    private func handleDelayed(pressed: Bool) {
+        if pressed {
+            let work = DispatchWorkItem { [weak self] in self?.fireStart() }
+            lock.withLock {
+                pendingStart?.cancel()
+                pendingStart = work
+            }
+            delayQueue.asyncAfter(deadline: .now() + startDelay, execute: work)
+        } else {
+            let wasActive = lock.withLock { () -> Bool in
+                pendingStart?.cancel()
+                pendingStart = nil
+                let active = isActive
+                isActive = false
+                return active
+            }
+            if wasActive { yield(.stopDictation) }
+        }
+    }
+
+    /// Fires when the key has been held alone long enough to count as intentional.
+    private func fireStart() {
+        let start = lock.withLock { () -> Bool in
+            guard pendingStart != nil else { return false }  // cancelled meanwhile
+            pendingStart = nil
+            isActive = true
+            return true
+        }
+        if start { yield(.startDictation) }
+    }
+
+    /// Drops a pending or active guarded session (used when a shortcut is detected).
+    private func cancelPending() {
+        let wasActive = lock.withLock { () -> Bool in
+            pendingStart?.cancel()
+            pendingStart = nil
+            let active = isActive
+            isActive = false
+            return active
+        }
+        if wasActive { yield(.cancel) }
+    }
+
+    private func yield(_ intent: HotkeyIntent) {
+        lock.withLock { continuation }?.yield(intent)
     }
 
     private func stop() {
         let (tap, loop, continuation) = lock.withLock {
             isStopped = true
+            pendingStart?.cancel()
+            pendingStart = nil
             return (eventTap, runLoop, self.continuation)
         }
         if let tap {

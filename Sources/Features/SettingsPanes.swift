@@ -129,7 +129,7 @@ struct CommandPane: View {
 
                 if settings.commandEnabled {
                     Text(
-                        "Hold Right Command, speak a request, and release — the answer appears in the notch."
+                        "Hold Right Command on its own (not as part of a shortcut), speak a request, and release — the answer appears in the notch."
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
