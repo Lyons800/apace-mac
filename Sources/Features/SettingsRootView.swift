@@ -33,6 +33,7 @@ public struct SettingsRootView: View {
         case .general: GeneralPane(settings: settings)
         case .transcription: TranscriptionPane(settings: settings)
         case .cleanup: CleanupPane(settings: settings)
+        case .command: CommandPane(settings: settings)
         case .dictionary: DictionaryPane(vocabulary: vocabulary)
         case .about: AboutPane()
         }
@@ -43,6 +44,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case general
     case transcription
     case cleanup
+    case command
     case dictionary
     case about
 
@@ -53,6 +55,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: "General"
         case .transcription: "Transcription"
         case .cleanup: "Cleanup"
+        case .command: "Command mode"
         case .dictionary: "Dictionary"
         case .about: "About"
         }
@@ -63,6 +66,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: "gearshape"
         case .transcription: "waveform"
         case .cleanup: "sparkles"
+        case .command: "command"
         case .dictionary: "character.book.closed"
         case .about: "info.circle"
         }

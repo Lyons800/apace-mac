@@ -5,68 +5,79 @@ import DynamicNotchKit
 import Features
 import SwiftUI
 
-/// Presents the dictation overlay in the notch using DynamicNotchKit, which provides
-/// the native notch-hugging chrome on notched Macs and a floating pill on external
-/// displays. It watches the dictation state and expands the notch while a dictation is
-/// in flight, hiding it when idle.
+/// Presents the dictation and command overlays in the notch using DynamicNotchKit, which
+/// provides the native notch-hugging chrome on notched Macs and a floating pill on
+/// external displays. It watches both the dictation state and the command activity and
+/// expands the notch while either is in flight, hiding it when both are idle.
 @MainActor
 final class NotchOverlayController {
-    private let model: DictationModel
+    private let dictation: DictationModel
+    private let command: CommandModel
 
     private lazy var notch = DynamicNotch(hoverBehavior: [.keepVisible], style: .auto) {
-        [model] in
-        NotchContent(model: model)
+        [dictation, command] in
+        NotchContent(dictation: dictation, command: command)
     }
 
-    init(model: DictationModel) {
-        self.model = model
+    init(dictation: DictationModel, command: CommandModel) {
+        self.dictation = dictation
+        self.command = command
     }
 
-    /// Starts reacting to state changes. The notch expands on the first non-idle state
-    /// and hides once the dictation returns to idle.
+    /// Starts reacting to state changes. The notch expands on the first activity and
+    /// hides once everything returns to idle.
     func present() {
         observe()
-        react(to: model.state)
+        react()
     }
 
     private func observe() {
         withObservationTracking {
-            _ = model.state
+            _ = dictation.state
+            _ = command.activity
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
-                self.react(to: self.model.state)
+                self.react()
                 self.observe()
             }
         }
     }
 
-    private func react(to state: DictationState) {
-        switch state {
-        case .idle:
-            Task { await notch.hide() }
-        case .listening, .transcribing, .inserting, .failed:
+    private func react() {
+        let dictating = dictation.state != .idle
+        if dictating || command.activity.isActive {
             Task { await notch.expand() }
+        } else {
+            Task { await notch.hide() }
         }
     }
 }
 
-/// The SwiftUI content shown inside the notch. It observes the model, so the transcript
-/// and level update live; the notch chrome supplies the black background on notched
-/// Macs, and on a floating (no-notch) display we paint our own so it matches.
+/// The SwiftUI content shown inside the notch. It observes both models, showing the
+/// command answer when command mode is active and the dictation transcript otherwise.
+/// The notch chrome supplies the black background on notched Macs; on a floating
+/// (no-notch) display we paint our own so it matches.
 private struct NotchContent: View {
-    let model: DictationModel
+    let dictation: DictationModel
+    let command: CommandModel
 
     private var isFloating: Bool {
         (NSScreen.screens.first?.safeAreaInsets.top ?? 0) <= 0
     }
 
     var body: some View {
-        NotchOverlayContent(state: model.state, level: model.audioLevel)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .frame(maxWidth: 480, alignment: .leading)
-            .fixedSize(horizontal: false, vertical: true)
-            .background { if isFloating { Color.black.padding(-16) } }
+        Group {
+            if command.activity.isActive {
+                NotchCommandContent(activity: command.activity)
+            } else {
+                NotchOverlayContent(state: dictation.state, level: dictation.audioLevel)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .frame(maxWidth: 480, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .background { if isFloating { Color.black.padding(-16) } }
     }
 }

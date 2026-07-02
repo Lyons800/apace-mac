@@ -18,6 +18,18 @@ extension DictationClients {
     )
 }
 
+extension CommandClients {
+    /// The production wiring for command mode: shared audio and the selected transcriber,
+    /// plus screen capture and the vision client that answers with the user's provider.
+    static let live = CommandClients(
+        audio: .live,
+        transcriber: .selected,
+        screen: .live,
+        vision: .live(apiKey: { provider in CredentialStore.live.load(provider.keyAccount) }),
+        hotkey: .command
+    )
+}
+
 extension TextProcessorClient {
     /// Cleans up the transcript before it's inserted, reading both preferences fresh on
     /// every dictation so changes take effect immediately: optional AI cleanup first

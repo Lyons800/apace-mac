@@ -13,6 +13,10 @@ extension HotkeyClient {
     /// can't be created and the stream simply stays quiet — onboarding is responsible
     /// for getting the grant.
     public static let live = HotkeyClient(intents: { HotkeyMonitor.rightOption.intents() })
+
+    /// Command mode's push-to-talk, on Right Command so it doesn't clash with dictation
+    /// on Right Option.
+    public static let command = HotkeyClient(intents: { HotkeyMonitor.rightCommand.intents() })
 }
 
 /// Watches a single modifier key through a `CGEvent` tap and turns its press and
@@ -27,6 +31,11 @@ final class HotkeyMonitor: @unchecked Sendable {
     static let rightOption = HotkeyMonitor(
         keyCode: CGKeyCode(kVK_RightOption),
         modifier: .maskAlternate
+    )
+
+    static let rightCommand = HotkeyMonitor(
+        keyCode: CGKeyCode(kVK_RightCommand),
+        modifier: .maskCommand
     )
 
     private let keyCode: CGKeyCode

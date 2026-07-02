@@ -32,7 +32,7 @@ struct GeneralPane: View {
                 + "Parakeet and cleanup uses Apple Intelligence, both on-device. Pick a "
                 + "specific model in each section."
         case .cloud:
-            "Cleanup (and, later, screen vision) use a cloud provider you choose with "
+            "Cleanup and command-mode screen vision use a cloud provider you choose with "
                 + "your own key. Transcription stays on-device — Parakeet is faster than "
                 + "and as accurate as the cloud options, so there's nothing to gain."
         }
@@ -113,6 +113,55 @@ struct CleanupPane: View {
         default:
             "Your transcript is sent to \(settings.cleanupProvider.displayName) only when "
                 + "cleanup runs. The key is stored in your Keychain."
+        }
+    }
+}
+
+// MARK: - Command mode
+
+struct CommandPane: View {
+    @Bindable var settings: SettingsStore
+
+    var body: some View {
+        Form {
+            Section("Command mode") {
+                Toggle("Enable command mode", isOn: $settings.commandEnabled)
+
+                if settings.commandEnabled {
+                    Text(
+                        "Hold Right Command, speak a request, and release — the answer appears in the notch."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    Toggle("Let it see my screen", isOn: $settings.commandVision)
+
+                    Picker("Provider", selection: $settings.visionProvider) {
+                        ForEach(VisionProvider.allCases, id: \.self) { provider in
+                            Text(provider.displayName).tag(provider)
+                        }
+                    }
+                    if settings.visionProvider.requiresAPIKey {
+                        SecureField("API key", text: $settings.visionKey)
+                    }
+
+                    Text(providerNote)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var providerNote: String {
+        switch settings.visionProvider {
+        case .onDevice:
+            "Answers on your Mac with Apple Intelligence (macOS 26). On-device screen "
+                + "vision is limited today — use Gemini for full screen understanding."
+        case .gemini:
+            "Sends your request — and the screenshot, if enabled — to Google Gemini. The "
+                + "key is stored in your Keychain."
         }
     }
 }

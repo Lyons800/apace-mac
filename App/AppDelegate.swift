@@ -11,6 +11,7 @@ import Transcription
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let dictation = DictationModel(clients: .live)
+    let command = CommandModel(clients: .live)
     let permissions = PermissionsModel(client: .live)
     let settings = SettingsStore(credentials: .live)
     let vocabulary = VocabularyStore()
@@ -25,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         dictation.activate()
+        command.activate()
 
         // Warm up the chosen engine's model so the first dictation doesn't wait on a
         // download.
@@ -36,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             TextProcessorClient.preloadOnDeviceCleanup()
         }
 
-        let overlay = NotchOverlayController(model: dictation)
+        let overlay = NotchOverlayController(dictation: dictation, command: command)
         overlay.present()
         self.overlay = overlay
 

@@ -4,17 +4,18 @@ import Foundation
 import Observation
 
 /// The observable store behind the settings window. It surfaces the persisted
-/// preferences for the UI to bind to, and writes changes straight back — engine and
-/// cleanup toggle through their UserDefaults seams, the API key through the Keychain-
-/// backed credential store — so they take effect on the next dictation.
+/// preferences for the UI to bind to, and writes changes straight back — the toggles and
+/// pickers through their UserDefaults seams, the API keys through the Keychain-backed
+/// credential store — so they take effect on the next dictation or command.
 @Observable
 public final class SettingsStore {
-    /// The overall on-device-vs-cloud stance. Changing it applies that mode's
-    /// recommended cleanup provider; individual capabilities can still be overridden.
+    /// The overall on-device-vs-cloud stance. Changing it applies that mode's recommended
+    /// cleanup and vision providers; individual capabilities can still be overridden.
     public var processingMode: ProcessingMode {
         didSet {
             ProcessingModePreference.mode = processingMode
             cleanupProvider = processingMode.recommendedCleanupProvider
+            visionProvider = VisionProvider.recommended(for: processingMode)
         }
     }
 
@@ -30,13 +31,52 @@ public final class SettingsStore {
     public var cleanupProvider: CleanupProvider {
         didSet {
             CleanupPreference.provider = cleanupProvider
-            apiKey = loadKey(for: cleanupProvider)
+            apiKey = loadKey(
+                account: cleanupProvider.keyAccount,
+                requires: cleanupProvider.requiresAPIKey
+            )
         }
     }
 
-    /// The API key for the currently-selected provider; empty for on-device.
+    /// The API key for the currently-selected cleanup provider; empty for on-device.
     public var apiKey: String {
-        didSet { persistKey(apiKey, for: cleanupProvider) }
+        didSet {
+            persistKey(
+                apiKey,
+                account: cleanupProvider.keyAccount,
+                requires: cleanupProvider.requiresAPIKey
+            )
+        }
+    }
+
+    public var commandEnabled: Bool {
+        didSet { CommandPreference.isEnabled = commandEnabled }
+    }
+
+    public var commandVision: Bool {
+        didSet { CommandPreference.usesVision = commandVision }
+    }
+
+    /// The provider that answers commands. Changing it reloads its API key.
+    public var visionProvider: VisionProvider {
+        didSet {
+            CommandPreference.provider = visionProvider
+            visionKey = loadKey(
+                account: visionProvider.keyAccount,
+                requires: visionProvider.requiresAPIKey
+            )
+        }
+    }
+
+    /// The API key for the currently-selected vision provider; empty for on-device.
+    public var visionKey: String {
+        didSet {
+            persistKey(
+                visionKey,
+                account: visionProvider.keyAccount,
+                requires: visionProvider.requiresAPIKey
+            )
+        }
     }
 
     private let credentials: CredentialStore
@@ -48,21 +88,32 @@ public final class SettingsStore {
         aiCleanupEnabled = CleanupPreference.isEnabled
         cleanupProvider = CleanupPreference.provider
         apiKey = ""
-        apiKey = loadKey(for: cleanupProvider)
+        commandEnabled = CommandPreference.isEnabled
+        commandVision = CommandPreference.usesVision
+        visionProvider = CommandPreference.provider
+        visionKey = ""
+        apiKey = loadKey(
+            account: cleanupProvider.keyAccount,
+            requires: cleanupProvider.requiresAPIKey
+        )
+        visionKey = loadKey(
+            account: visionProvider.keyAccount,
+            requires: visionProvider.requiresAPIKey
+        )
     }
 
-    private func loadKey(for provider: CleanupProvider) -> String {
-        guard provider.requiresAPIKey else { return "" }
-        return credentials.load(provider.keyAccount) ?? ""
+    private func loadKey(account: String, requires: Bool) -> String {
+        guard requires else { return "" }
+        return credentials.load(account) ?? ""
     }
 
-    private func persistKey(_ key: String, for provider: CleanupProvider) {
-        guard provider.requiresAPIKey else { return }
+    private func persistKey(_ key: String, account: String, requires: Bool) {
+        guard requires else { return }
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            credentials.delete(provider.keyAccount)
+            credentials.delete(account)
         } else {
-            credentials.save(trimmed, provider.keyAccount)
+            credentials.save(trimmed, account)
         }
     }
 }
