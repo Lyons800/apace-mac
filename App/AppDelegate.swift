@@ -2,6 +2,7 @@ import ApaceClients
 import AppKit
 import Features
 import SystemServices
+import TextCleanup
 import Transcription
 
 /// Owns the app's long-lived models and brings them to life once the app has finished
@@ -28,6 +29,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Warm up the chosen engine's model so the first dictation doesn't wait on a
         // download.
         TranscriberClient.preload(EnginePreference.engine)
+
+        // Likewise warm up the local cleanup model when on-device cleanup is on and will
+        // fall back to it (no Apple Intelligence).
+        if CleanupPreference.isEnabled, CleanupPreference.provider == .onDevice {
+            TextProcessorClient.preloadOnDeviceCleanup()
+        }
 
         let overlay = NotchOverlayController(model: dictation)
         overlay.present()

@@ -108,8 +108,8 @@ struct CleanupPane: View {
     private var cleanupNote: String {
         switch settings.cleanupProvider {
         case .onDevice:
-            "Runs on your Mac via Apple Intelligence (macOS 26). A local model for older "
-                + "Macs is coming."
+            "Runs entirely on your Mac — Apple Intelligence where available, otherwise a "
+                + "small local model (downloaded once)."
         default:
             "Your transcript is sent to \(settings.cleanupProvider.displayName) only when "
                 + "cleanup runs. The key is stored in your Keychain."
