@@ -26,7 +26,7 @@ enum AppleIntelligenceCleaner {
         let model = SystemLanguageModel.default
         guard model.isAvailable else { return text }
 
-        let session = LanguageModelSession(instructions: instructions)
+        let session = LanguageModelSession(instructions: CleanupInstructions.system)
         do {
             let response = try await session.respond(to: text)
             return response.content
@@ -35,11 +35,4 @@ enum AppleIntelligenceCleaner {
             return text
         }
     }
-
-    private static let instructions = """
-        You clean up dictated text. Remove filler words (um, uh, like, you know), fix \
-        punctuation and capitalization, and apply light formatting. Preserve the \
-        meaning and the user's wording — do not add content, answer questions, or \
-        summarize. Return only the cleaned-up text.
-        """
 }

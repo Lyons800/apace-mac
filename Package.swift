@@ -88,5 +88,6 @@ let package = Package(
             name: "FeaturesTests",
             dependencies: ["Features", "ApaceCore", "ApaceClients"]
         ),
+        .testTarget(name: "TextCleanupTests", dependencies: ["TextCleanup"]),
     ]
 )

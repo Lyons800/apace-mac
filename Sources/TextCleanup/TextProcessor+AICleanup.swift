@@ -22,31 +22,36 @@ extension TextProcessorClient {
             guard !text.isEmpty else { return text }
             let provider = provider()
 
+            let cleaned: String
             switch provider {
             case .onDevice:
                 // Apple Intelligence where available (zero download); otherwise a small
                 // local MLX model so on-device cleanup works on any Apple Silicon Mac.
                 if AppleIntelligenceCleaner.isAvailable {
-                    return await AppleIntelligenceCleaner.clean(text)
+                    cleaned = await AppleIntelligenceCleaner.clean(text)
+                } else {
+                    cleaned = await MLXCleaner.shared.clean(text)
                 }
-                return await MLXCleaner.shared.clean(text)
 
             case .anthropic:
                 guard let key = apiKey(provider), !key.isEmpty else { return text }
-                return await AnthropicCleaner.clean(text, apiKey: key)
+                cleaned = await AnthropicCleaner.clean(text, apiKey: key)
 
             case .groq:
                 guard let key = apiKey(provider), !key.isEmpty else { return text }
-                return await OpenAICompatibleCleaner.clean(text, apiKey: key, config: .groq)
+                cleaned = await OpenAICompatibleCleaner.clean(text, apiKey: key, config: .groq)
 
             case .openai:
                 guard let key = apiKey(provider), !key.isEmpty else { return text }
-                return await OpenAICompatibleCleaner.clean(text, apiKey: key, config: .openai)
+                cleaned = await OpenAICompatibleCleaner.clean(text, apiKey: key, config: .openai)
 
             case .gemini:
                 guard let key = apiKey(provider), !key.isEmpty else { return text }
-                return await GeminiCleaner.clean(text, apiKey: key)
+                cleaned = await GeminiCleaner.clean(text, apiKey: key)
             }
+
+            // Reject an "answer" that no longer resembles what the user said.
+            return CleanupGuard.preserve(original: text, cleaned: cleaned)
         }
     }
 }
