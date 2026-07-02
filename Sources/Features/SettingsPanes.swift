@@ -2,6 +2,43 @@ import ApaceCore
 import Foundation
 import SwiftUI
 
+// MARK: - General
+
+struct GeneralPane: View {
+    @Bindable var settings: SettingsStore
+
+    var body: some View {
+        Form {
+            Section("Mode") {
+                Picker("Processing", selection: $settings.processingMode) {
+                    ForEach(ProcessingMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Text(modeNote)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var modeNote: String {
+        switch settings.processingMode {
+        case .onDevice:
+            "Everything runs on your Mac — private and offline. Transcription uses "
+                + "Parakeet and cleanup uses Apple Intelligence, both on-device. Pick a "
+                + "specific model in each section."
+        case .cloud:
+            "Cleanup (and, later, screen vision) use a cloud provider you choose with "
+                + "your own key. Transcription stays on-device — Parakeet is faster than "
+                + "and as accurate as the cloud options, so there's nothing to gain."
+        }
+    }
+}
+
 // MARK: - Transcription
 
 struct TranscriptionPane: View {

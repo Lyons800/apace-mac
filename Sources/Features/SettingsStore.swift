@@ -9,6 +9,15 @@ import Observation
 /// backed credential store — so they take effect on the next dictation.
 @Observable
 public final class SettingsStore {
+    /// The overall on-device-vs-cloud stance. Changing it applies that mode's
+    /// recommended cleanup provider; individual capabilities can still be overridden.
+    public var processingMode: ProcessingMode {
+        didSet {
+            ProcessingModePreference.mode = processingMode
+            cleanupProvider = processingMode.recommendedCleanupProvider
+        }
+    }
+
     public var engine: TranscriptionEngine {
         didSet { EnginePreference.engine = engine }
     }
@@ -34,6 +43,7 @@ public final class SettingsStore {
 
     public init(credentials: CredentialStore) {
         self.credentials = credentials
+        processingMode = ProcessingModePreference.mode
         engine = EnginePreference.engine
         aiCleanupEnabled = CleanupPreference.isEnabled
         cleanupProvider = CleanupPreference.provider

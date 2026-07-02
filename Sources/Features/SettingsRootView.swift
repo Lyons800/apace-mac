@@ -7,7 +7,7 @@ import SwiftUI
 public struct SettingsRootView: View {
     @Bindable private var settings: SettingsStore
     @Bindable private var vocabulary: VocabularyStore
-    @State private var selection: SettingsSection = .transcription
+    @State private var selection: SettingsSection = .general
 
     public init(settings: SettingsStore, vocabulary: VocabularyStore) {
         self.settings = settings
@@ -30,6 +30,7 @@ public struct SettingsRootView: View {
     @ViewBuilder
     private var detail: some View {
         switch selection {
+        case .general: GeneralPane(settings: settings)
         case .transcription: TranscriptionPane(settings: settings)
         case .cleanup: CleanupPane(settings: settings)
         case .dictionary: DictionaryPane(vocabulary: vocabulary)
@@ -39,6 +40,7 @@ public struct SettingsRootView: View {
 }
 
 enum SettingsSection: String, CaseIterable, Identifiable {
+    case general
     case transcription
     case cleanup
     case dictionary
@@ -48,6 +50,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .general: "General"
         case .transcription: "Transcription"
         case .cleanup: "Cleanup"
         case .dictionary: "Dictionary"
@@ -57,6 +60,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
+        case .general: "gearshape"
         case .transcription: "waveform"
         case .cleanup: "sparkles"
         case .dictionary: "character.book.closed"
