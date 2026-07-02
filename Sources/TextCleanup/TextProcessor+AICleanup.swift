@@ -2,12 +2,14 @@ import ApaceClients
 import ApaceCore
 
 extension TextProcessorClient {
-    /// Warms up the local cleanup model in the background, but only when it will
-    /// actually be used — on-device provider and no Apple Intelligence to fall back on —
-    /// so the first cleanup doesn't wait on the one-time download.
+    /// Warms up the on-device cleanup model so the first cleanup isn't cold: prewarm
+    /// Apple Intelligence where available, otherwise load the local MLX model.
     public static func preloadOnDeviceCleanup() {
-        guard !AppleIntelligenceCleaner.isAvailable else { return }
-        Task { await MLXCleaner.shared.preload() }
+        if AppleIntelligenceCleaner.isAvailable {
+            AppleIntelligenceCleaner.prewarm()
+        } else {
+            Task { await MLXCleaner.shared.preload() }
+        }
     }
 
     /// AI text cleanup routed to the user's chosen provider. On-device uses Apple

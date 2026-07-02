@@ -35,4 +35,11 @@ enum AppleIntelligenceCleaner {
             return text
         }
     }
+
+    /// Loads the model into memory ahead of time so the first cleanup isn't cold. Cheap
+    /// to call; a no-op when Apple Intelligence isn't available.
+    static func prewarm() {
+        guard #available(macOS 26.0, *), SystemLanguageModel.default.isAvailable else { return }
+        LanguageModelSession(instructions: CleanupInstructions.system).prewarm()
+    }
 }
