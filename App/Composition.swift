@@ -36,7 +36,9 @@ extension TextProcessorClient {
     /// (on-device, falling back to the user's API key) when enabled, then the user's
     /// custom vocabulary, which gets the final say on exact spellings.
     static let live = TextProcessorClient { text in
-        var result = text
+        // Instant deterministic tidy first (filler, spacing) — no latency. Optional AI
+        // cleanup layers on top only when enabled; vocabulary always gets the last say.
+        var result = FastTidy.apply(text)
         if CleanupPreference.isEnabled {
             result = await cleanup.process(result)
         }
