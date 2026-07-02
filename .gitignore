@@ -38,3 +38,4 @@ ExportOptions.local.plist
 
 # Private strategy / competitive notes — kept out of the public repo
 /notes/
+dist/
