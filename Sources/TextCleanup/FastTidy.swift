@@ -6,12 +6,12 @@ import Foundation
 /// the leading capital. Anything context-dependent (rephrasing, ambiguous filler like
 /// "like") is left to the optional AI cleanup, so the fast path stays fast. Modern
 /// engines already punctuate and capitalize, so this alone gives a clean result.
-enum FastTidy {
+public enum FastTidy {
     private static let fillers: Set<String> = [
         "um", "umm", "uh", "uhh", "uhm", "er", "err", "erm", "ah", "ahh", "hmm", "mmm",
     ]
 
-    static func apply(_ text: String) -> String {
+    public static func apply(_ text: String) -> String {
         let tokens = text.split { $0 == " " || $0 == "\n" || $0 == "\t" }
         let kept = tokens.filter { token in
             let bare = token.lowercased().trimmingCharacters(
