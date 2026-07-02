@@ -8,13 +8,6 @@ enum AnthropicCleaner {
     static let model = "claude-haiku-4-5"
     private static let endpoint = "https://api.anthropic.com/v1/messages"
 
-    private static let instructions = """
-        You clean up dictated text. Remove filler words (um, uh, like, you know), fix \
-        punctuation and capitalization, and apply light formatting. Preserve the \
-        meaning and the user's wording — do not add content, answer questions, or \
-        summarize. Return only the cleaned-up text.
-        """
-
     static func clean(_ text: String, apiKey: String) async -> String {
         guard let url = URL(string: endpoint) else { return text }
 
@@ -27,7 +20,7 @@ enum AnthropicCleaner {
         let body = RequestBody(
             model: model,
             maxTokens: 2048,
-            system: instructions,
+            system: CleanupInstructions.system,
             messages: [Message(role: "user", content: text)]
         )
         guard let encoded = try? JSONEncoder().encode(body) else { return text }

@@ -1,4 +1,5 @@
 import ApaceClients
+import ApaceCore
 import AudioCapture
 import SystemServices
 import TextCleanup
@@ -31,7 +32,8 @@ extension TextProcessorClient {
     }
 
     private static let cleanup = TextProcessorClient.aiCleanup(
-        apiKey: { CredentialStore.live.load(CredentialStore.anthropicAccount) }
+        provider: { CleanupPreference.provider },
+        apiKey: { provider in CredentialStore.live.load(provider.keyAccount) }
     )
 }
 

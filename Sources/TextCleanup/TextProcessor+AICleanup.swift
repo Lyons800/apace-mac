@@ -1,21 +1,40 @@
 import ApaceClients
+import ApaceCore
 
 extension TextProcessorClient {
-    /// AI text cleanup, on-device first with a bring-your-own-key fallback: it uses
-    /// Apple Intelligence when that's available, otherwise the user's own API key if
-    /// they've set one, and otherwise leaves the text untouched. `apiKey` is read fresh
-    /// each call so a key added in settings takes effect immediately.
-    public static func aiCleanup(apiKey: @escaping @Sendable () -> String?) -> TextProcessorClient {
+    /// AI text cleanup routed to the user's chosen provider. On-device uses Apple
+    /// Intelligence; the cloud providers each use the user's own key. The provider and
+    /// key are read fresh each call so a change in settings takes effect immediately,
+    /// and any failure (no key, unavailable, network) leaves the text untouched.
+    public static func aiCleanup(
+        provider: @escaping @Sendable () -> CleanupProvider,
+        apiKey: @escaping @Sendable (CleanupProvider) -> String?
+    ) -> TextProcessorClient {
         TextProcessorClient { text in
             guard !text.isEmpty else { return text }
+            let provider = provider()
 
-            if AppleIntelligenceCleaner.isAvailable {
+            switch provider {
+            case .onDevice:
+                guard AppleIntelligenceCleaner.isAvailable else { return text }
                 return await AppleIntelligenceCleaner.clean(text)
-            }
-            if let key = apiKey(), !key.isEmpty {
+
+            case .anthropic:
+                guard let key = apiKey(provider), !key.isEmpty else { return text }
                 return await AnthropicCleaner.clean(text, apiKey: key)
+
+            case .groq:
+                guard let key = apiKey(provider), !key.isEmpty else { return text }
+                return await OpenAICompatibleCleaner.clean(text, apiKey: key, config: .groq)
+
+            case .openai:
+                guard let key = apiKey(provider), !key.isEmpty else { return text }
+                return await OpenAICompatibleCleaner.clean(text, apiKey: key, config: .openai)
+
+            case .gemini:
+                guard let key = apiKey(provider), !key.isEmpty else { return text }
+                return await GeminiCleaner.clean(text, apiKey: key)
             }
-            return text
         }
     }
 }
