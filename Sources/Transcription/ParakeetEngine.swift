@@ -6,11 +6,17 @@ import Foundation
 /// reset it. The model downloads on first use and is cached; the shared instance keeps
 /// it loaded for the app's lifetime.
 actor ParakeetEngine {
-    static let shared = ParakeetEngine()
+    /// v3 is multilingual (25 languages); v2 is English-only with the best English WER.
+    static let v3 = ParakeetEngine(version: .v3)
+    static let v2 = ParakeetEngine(version: .v2)
 
-    private let version: AsrModelVersion = .v3
+    private let version: AsrModelVersion
     private var manager: AsrManager?
     private var loadTask: Task<AsrManager, Error>?
+
+    init(version: AsrModelVersion) {
+        self.version = version
+    }
 
     /// Transcribes 16 kHz mono float PCM, loading the model on first call.
     func transcribe(_ samples: [Float]) async throws -> String {

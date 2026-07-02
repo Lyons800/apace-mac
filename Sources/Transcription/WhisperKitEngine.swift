@@ -6,13 +6,18 @@ import Foundation
 /// with pauses come through intact. Downloads the model on first use and keeps it
 /// loaded on the shared instance.
 actor WhisperKitEngine {
-    static let shared = WhisperKitEngine()
+    /// Turbo: near-large-v3 accuracy at several times the speed (~632 MB). Full large-v3:
+    /// maximum accuracy, slower and larger (~947 MB).
+    static let turbo = WhisperKitEngine(model: "openai_whisper-large-v3-v20240930_turbo")
+    static let largeV3 = WhisperKitEngine(model: "openai_whisper-large-v3")
 
-    // The turbo large-v3 model: near-large-v3 accuracy at several times the speed. The
-    // old base.en default was fast but noticeably weaker. (~632 MB, downloaded once.)
-    private let model = "openai_whisper-large-v3-v20240930_turbo"
+    private let model: String
     private var kit: WhisperKit?
     private var loadTask: Task<WhisperKit, Error>?
+
+    init(model: String) {
+        self.model = model
+    }
 
     func transcribe(_ samples: [Float]) async throws -> String {
         let kit = try await ready()

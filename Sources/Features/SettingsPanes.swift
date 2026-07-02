@@ -65,9 +65,14 @@ struct TranscriptionPane: View {
         case .apple:
             "Built into macOS — instant, no download, but can reset on long pauses."
         case .parakeet:
-            "On-device, fast and accurate; handles pauses. Downloads a model on first use."
+            "On-device, fast and accurate across 25 languages; handles pauses. "
+                + "Downloads a model on first use."
+        case .parakeetEnglish:
+            "On-device, highest English accuracy. Downloads a model on first use."
         case .whisper:
-            "On-device, broad language support. Downloads a model on first use."
+            "On-device, broad language support at good speed. Downloads a ~630 MB model."
+        case .whisperMax:
+            "On-device, maximum accuracy but slower. Downloads a ~950 MB model."
         }
     }
 }

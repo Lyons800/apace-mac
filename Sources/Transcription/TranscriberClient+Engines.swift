@@ -8,8 +8,10 @@ extension TranscriberClient {
     public static func make(for engine: TranscriptionEngine) -> TranscriberClient {
         switch engine {
         case .apple: apple
-        case .whisper: whisperKit
-        case .parakeet: parakeet
+        case .parakeet: parakeet(.v3)
+        case .parakeetEnglish: parakeet(.v2)
+        case .whisper: whisper(.turbo)
+        case .whisperMax: whisper(.largeV3)
         }
     }
 
@@ -17,18 +19,24 @@ extension TranscriberClient {
     public static func preload(_ engine: TranscriptionEngine) {
         switch engine {
         case .apple: break
-        case .whisper: Task { await WhisperKitEngine.shared.preload() }
-        case .parakeet: Task { await ParakeetEngine.shared.preload() }
+        case .parakeet: Task { await ParakeetEngine.v3.preload() }
+        case .parakeetEnglish: Task { await ParakeetEngine.v2.preload() }
+        case .whisper: Task { await WhisperKitEngine.turbo.preload() }
+        case .whisperMax: Task { await WhisperKitEngine.largeV3.preload() }
         }
     }
 
-    static let parakeet = TranscriberClient(
-        stream: { _ in AsyncThrowingStream { $0.finish() } },
-        transcribe: { try await ParakeetEngine.shared.transcribe($0) }
-    )
+    static func parakeet(_ engine: ParakeetEngine) -> TranscriberClient {
+        TranscriberClient(
+            stream: { _ in AsyncThrowingStream { $0.finish() } },
+            transcribe: { try await engine.transcribe($0) }
+        )
+    }
 
-    static let whisperKit = TranscriberClient(
-        stream: { _ in AsyncThrowingStream { $0.finish() } },
-        transcribe: { try await WhisperKitEngine.shared.transcribe($0) }
-    )
+    static func whisper(_ engine: WhisperKitEngine) -> TranscriberClient {
+        TranscriberClient(
+            stream: { _ in AsyncThrowingStream { $0.finish() } },
+            transcribe: { try await engine.transcribe($0) }
+        )
+    }
 }

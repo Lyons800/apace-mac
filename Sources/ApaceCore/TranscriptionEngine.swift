@@ -7,22 +7,28 @@
 public enum TranscriptionEngine: String, CaseIterable, Sendable, Codable {
     /// Apple's built-in recogniser. Always available and needs no download.
     case apple
-    /// OpenAI Whisper via Core ML (WhisperKit). Higher accuracy; downloads a model.
-    case whisper
-    /// NVIDIA Parakeet via FluidAudio. Fast; downloads a model.
+    /// Parakeet TDT v3 (FluidAudio) — multilingual, fast, the balanced default.
     case parakeet
+    /// Parakeet TDT v2 (FluidAudio) — English-only, highest English accuracy.
+    case parakeetEnglish
+    /// Whisper large-v3 turbo (WhisperKit) — broad language support at good speed.
+    case whisper
+    /// Whisper large-v3 (WhisperKit) — maximum accuracy, slower and larger.
+    case whisperMax
 
     /// The engine used until the user picks another. Parakeet is the default because
-    /// it's the strongest on-device option — fast and accurate, and it transcribes the
-    /// whole utterance without splitting on pauses.
+    /// it's the strongest all-round on-device option — fast and accurate, and it
+    /// transcribes the whole utterance without splitting on pauses.
     public static let `default` = TranscriptionEngine.parakeet
 
     /// Name shown to the user.
     public var displayName: String {
         switch self {
         case .apple: "Apple"
-        case .whisper: "Whisper"
-        case .parakeet: "Parakeet"
+        case .parakeet: "Parakeet (Balanced)"
+        case .parakeetEnglish: "Parakeet (English, max accuracy)"
+        case .whisper: "Whisper (Turbo)"
+        case .whisperMax: "Whisper (Max accuracy)"
         }
     }
 
@@ -31,7 +37,7 @@ public enum TranscriptionEngine: String, CaseIterable, Sendable, Codable {
     public var requiresModelDownload: Bool {
         switch self {
         case .apple: false
-        case .whisper, .parakeet: true
+        default: true
         }
     }
 }
