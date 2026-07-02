@@ -17,8 +17,17 @@ public final class SettingsStore {
         didSet { CleanupPreference.isEnabled = aiCleanupEnabled }
     }
 
-    public var anthropicAPIKey: String {
-        didSet { persistAPIKey() }
+    /// The cleanup provider. Changing it reloads the API key for the newly-selected one.
+    public var cleanupProvider: CleanupProvider {
+        didSet {
+            CleanupPreference.provider = cleanupProvider
+            apiKey = loadKey(for: cleanupProvider)
+        }
+    }
+
+    /// The API key for the currently-selected provider; empty for on-device.
+    public var apiKey: String {
+        didSet { persistKey(apiKey, for: cleanupProvider) }
     }
 
     private let credentials: CredentialStore
@@ -27,15 +36,23 @@ public final class SettingsStore {
         self.credentials = credentials
         engine = EnginePreference.engine
         aiCleanupEnabled = CleanupPreference.isEnabled
-        anthropicAPIKey = credentials.load(CredentialStore.anthropicAccount) ?? ""
+        cleanupProvider = CleanupPreference.provider
+        apiKey = ""
+        apiKey = loadKey(for: cleanupProvider)
     }
 
-    private func persistAPIKey() {
-        let trimmed = anthropicAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func loadKey(for provider: CleanupProvider) -> String {
+        guard provider.requiresAPIKey else { return "" }
+        return credentials.load(provider.keyAccount) ?? ""
+    }
+
+    private func persistKey(_ key: String, for provider: CleanupProvider) {
+        guard provider.requiresAPIKey else { return }
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            credentials.delete(CredentialStore.anthropicAccount)
+            credentials.delete(provider.keyAccount)
         } else {
-            credentials.save(trimmed, CredentialStore.anthropicAccount)
+            credentials.save(trimmed, provider.keyAccount)
         }
     }
 }

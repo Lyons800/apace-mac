@@ -27,20 +27,22 @@ public struct SettingsView: View {
 
             Section("Cleanup") {
                 Toggle("Clean up dictation with AI", isOn: $settings.aiCleanupEnabled)
-                Text(
-                    "Removes filler and fixes punctuation on-device with Apple "
-                        + "Intelligence when it's available."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
 
-                SecureField("Anthropic API key", text: $settings.anthropicAPIKey)
-                Text(
-                    "Optional fallback for Macs without Apple Intelligence. Stored in "
-                        + "your Keychain and sent to Anthropic only when cleanup runs."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                if settings.aiCleanupEnabled {
+                    Picker("Provider", selection: $settings.cleanupProvider) {
+                        ForEach(CleanupProvider.allCases, id: \.self) { provider in
+                            Text(provider.displayName).tag(provider)
+                        }
+                    }
+
+                    if settings.cleanupProvider.requiresAPIKey {
+                        SecureField("API key", text: $settings.apiKey)
+                    }
+
+                    Text(cleanupNote)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section("Custom words") {
@@ -72,14 +74,25 @@ public struct SettingsView: View {
         .frame(width: 460, height: 440)
     }
 
-    /// Honest about what's live: Apple works today; the others are on the way, and the
-    /// app quietly falls back to Apple until they land.
     private var engineNote: String {
         switch settings.engine {
         case .apple:
-            "Built into macOS — instant, private, no download."
-        case .whisper, .parakeet:
-            "Coming soon. Apace uses Apple's engine until \(settings.engine.displayName) lands."
+            "Built into macOS — instant, no download, but can reset on long pauses."
+        case .parakeet:
+            "On-device, fast and accurate; handles pauses. Downloads a model on first use."
+        case .whisper:
+            "On-device, broad language support. Downloads a model on first use."
+        }
+    }
+
+    private var cleanupNote: String {
+        switch settings.cleanupProvider {
+        case .onDevice:
+            "Runs on your Mac via Apple Intelligence (macOS 26). A local model for older "
+                + "Macs is coming."
+        default:
+            "Your transcript is sent to \(settings.cleanupProvider.displayName) only when "
+                + "cleanup runs. The key is stored in your Keychain."
         }
     }
 }
