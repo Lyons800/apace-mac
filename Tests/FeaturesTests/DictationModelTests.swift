@@ -33,7 +33,7 @@ private func stubClients(transcript: String) -> DictationClients {
         audio: AudioCaptureClient(
             start: { AsyncStream { $0.finish() } },
             samples: { [] },
-            stop: { [0.1, 0.2] }
+            stop: { Array(repeating: 0.1, count: 8_000) }
         ),
         transcriber: TranscriberClient(
             stream: { _ in AsyncThrowingStream { $0.finish() } },

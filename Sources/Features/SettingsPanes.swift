@@ -129,7 +129,7 @@ struct CommandPane: View {
 
                 if settings.commandEnabled {
                     Text(
-                        "Hold Right Command on its own (not as part of a shortcut), speak a request, and release — the answer appears in the notch."
+                        "Double-tap Right Option and hold the second tap, speak a request, and release — the answer appears in the notch. (A single hold dictates as usual.)"
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)

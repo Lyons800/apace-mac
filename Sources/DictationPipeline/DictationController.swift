@@ -95,9 +95,15 @@ public actor DictationController {
 
     private func finish() async {
         guard isListening else { return }
-        apply(.stopRequested)
         stopCapture()
         let samples = clients.audio.stop()
+        // A tap too short to be speech — e.g. the first tap when starting a command by
+        // double-tapping — is dropped silently rather than transcribed.
+        guard samples.count >= Self.minimumSamples else {
+            apply(.cancelled)
+            return
+        }
+        apply(.stopRequested)
         do {
             let raw = try await clients.transcriber.transcribe(samples)
             let text = await clients.processor.process(raw)
@@ -166,6 +172,8 @@ public actor DictationController {
     // Snappier live preview: tick more often over a shorter window so each
     // re-transcription is fast. The preview only needs the latest words — the accurate
     // final pass on release still uses the whole recording.
+    /// ~0.25s at 16 kHz — below this a "dictation" is really an accidental tap.
+    static let minimumSamples = 4_000
     static let previewIntervalMS = 350
     static let previewWindowSamples = 96_000  // ~6s at 16 kHz
 

@@ -5,106 +5,98 @@ import CoreGraphics
 import Foundation
 
 extension HotkeyClient {
-    /// Global push-to-talk via a session-level `CGEvent` tap: hold the hotkey to
-    /// dictate, release to insert. Defaults to Right Option; the key becomes
-    /// configurable in the settings milestone.
-    ///
-    /// Requires Accessibility (and Input Monitoring) permission. Without it the tap
-    /// can't be created and the stream simply stays quiet — onboarding is responsible
-    /// for getting the grant.
-    public static let live = HotkeyClient(intents: { HotkeyMonitor.rightOption.intents() })
+    /// Dictation push-to-talk: hold Right Option, release to insert.
+    public static let live = HotkeyClient(intents: { OptionHotkeyMonitor.shared.dictationIntents() }
+    )
 
-    /// Command mode's push-to-talk, on Right Command. Because Command is also the
-    /// shortcut modifier, this monitor waits a beat before activating and cancels the
-    /// moment any other key is pressed — so Cmd-C, Cmd-Shift-4 and friends never trigger
-    /// it. Hold Right Command *on its own* to speak a command.
-    public static let command = HotkeyClient(intents: { HotkeyMonitor.rightCommand.intents() })
+    /// Command mode: double-tap Right Option and hold the second tap, release to send.
+    /// Shares the Option key with dictation — a single hold dictates, a quick double-tap
+    /// hold gives a command — so there's no separate modifier to collide with shortcuts.
+    public static let command = HotkeyClient(intents: {
+        OptionHotkeyMonitor.shared.commandIntents()
+    })
 }
 
-/// Watches a single modifier key through a `CGEvent` tap and turns its press and
-/// release into dictation intents.
+/// Watches Right Option through a `CGEvent` tap and routes each hold to one of two
+/// streams: a plain hold dictates, a double-tap-and-hold is a command. Distinguishing
+/// them needs the timing of the previous tap, so a single monitor owns both streams.
 ///
-/// `@unchecked Sendable` because the tap callback fires on a dedicated run-loop thread
-/// while `intents()` is called from the app's setup thread; the shared state is small
-/// and guarded by `lock`. Reading the live flag state on every event (rather than
-/// toggling a remembered bool) is what stops recording from sticking "on" after a
-/// missed key-up.
-final class HotkeyMonitor: @unchecked Sendable {
-    static let rightOption = HotkeyMonitor(
-        keyCode: CGKeyCode(kVK_RightOption),
-        modifier: .maskAlternate
-    )
+/// `@unchecked Sendable`: the tap callback runs on a dedicated run-loop thread while the
+/// streams are requested from the setup thread; the small shared state is guarded by
+/// `lock`.
+final class OptionHotkeyMonitor: @unchecked Sendable {
+    static let shared = OptionHotkeyMonitor()
 
-    static let rightCommand = HotkeyMonitor(
-        keyCode: CGKeyCode(kVK_RightCommand),
-        modifier: .maskCommand,
-        startDelay: 0.3,
-        cancelOnKeyDown: true
-    )
+    private let keyCode = CGKeyCode(kVK_RightOption)
+    private let modifier: CGEventFlags = .maskAlternate
+    /// A press shorter than this counts as a "tap" rather than a hold.
+    private let tapMax: TimeInterval = 0.25
+    /// The second tap must begin within this of the first tap's release.
+    private let gapMax: TimeInterval = 0.3
 
-    private let keyCode: CGKeyCode
-    private let modifier: CGEventFlags
-    /// Wait this long, holding the key alone, before activating. Zero = immediate.
-    private let startDelay: TimeInterval
-    /// Cancel a pending/active session if any other key is pressed (i.e. it's a shortcut).
-    private let cancelOnKeyDown: Bool
     private let lock = NSLock()
-    private let delayQueue = DispatchQueue(label: "so.apace.hotkey.delay")
+    private var dictation: AsyncStream<HotkeyIntent>.Continuation?
+    private var command: AsyncStream<HotkeyIntent>.Continuation?
 
-    private var continuation: AsyncStream<HotkeyIntent>.Continuation?
     private var eventTap: CFMachPort?
     private var runLoop: CFRunLoop?
-    private var isPressed = false
+    private var started = false
     private var isStopped = false
-    private var pendingStart: DispatchWorkItem?
-    private var isActive = false
 
-    init(
-        keyCode: CGKeyCode,
-        modifier: CGEventFlags,
-        startDelay: TimeInterval = 0,
-        cancelOnKeyDown: Bool = false
-    ) {
-        self.keyCode = keyCode
-        self.modifier = modifier
-        self.startDelay = startDelay
-        self.cancelOnKeyDown = cancelOnKeyDown
+    private enum Gesture { case none, dictation, command }
+    private var isPressed = false
+    private var current: Gesture = .none
+    private var downTime: TimeInterval = 0
+    private var lastUpTime: TimeInterval = -1
+    private var lastPressWasTap = false
+
+    func dictationIntents() -> AsyncStream<HotkeyIntent> {
+        let (stream, continuation) = AsyncStream<HotkeyIntent>.makeStream()
+        lock.withLock { dictation = continuation }
+        continuation.onTermination = { [weak self] _ in
+            self?.lock.withLock { self?.dictation = nil }
+        }
+        ensureStarted()
+        return stream
     }
 
-    func intents() -> AsyncStream<HotkeyIntent> {
+    func commandIntents() -> AsyncStream<HotkeyIntent> {
         let (stream, continuation) = AsyncStream<HotkeyIntent>.makeStream()
-        lock.withLock { self.continuation = continuation }
-        continuation.onTermination = { [weak self] _ in self?.stop() }
+        lock.withLock { command = continuation }
+        continuation.onTermination = { [weak self] _ in self?.lock.withLock { self?.command = nil }
+        }
+        ensureStarted()
+        return stream
+    }
 
+    private func ensureStarted() {
+        let shouldStart = lock.withLock { () -> Bool in
+            guard !started, !isStopped else { return false }
+            started = true
+            return true
+        }
+        guard shouldStart else { return }
         let thread = Thread { [weak self] in self?.runTap() }
         thread.name = "so.apace.hotkey"
         thread.start()
-
-        return stream
     }
 
     /// Creates the session tap. Returns nil until Accessibility is granted.
     private func makeTap() -> CFMachPort? {
-        var mask = CGEventMask(1) << CGEventType.flagsChanged.rawValue
-        if cancelOnKeyDown {
-            mask |= CGEventMask(1) << CGEventType.keyDown.rawValue
-        }
+        let mask = CGEventMask(1) << CGEventType.flagsChanged.rawValue
         return CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .listenOnly,
             eventsOfInterest: mask,
-            callback: hotkeyEventCallback,
+            callback: optionHotkeyCallback,
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         )
     }
 
-    /// Builds the tap, pumps its run loop, and blocks the dedicated thread until the
-    /// loop is stopped from `stop()`.
+    /// Builds the tap, pumps its run loop, and blocks the dedicated thread until stopped.
+    /// Polls for Accessibility so the hotkey starts working the moment permission lands.
     private func runTap() {
-        // The tap needs Accessibility. If it isn't granted yet the user may be enabling
-        // it right now, so poll until we can create it rather than giving up — that's
-        // what lets the hotkey start working the moment permission lands, no restart.
         var tap = makeTap()
         while tap == nil {
             if lock.withLock({ isStopped }) { return }
@@ -131,19 +123,10 @@ final class HotkeyMonitor: @unchecked Sendable {
 
     /// Called from the tap callback on the run-loop thread.
     func handle(_ type: CGEventType, _ event: CGEvent) {
-        // The system disables a tap that is slow or interrupted; re-enable it so the
-        // hotkey survives sleep/wake and heavy load.
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap = lock.withLock({ eventTap }) {
                 CGEvent.tapEnable(tap: tap, enable: true)
             }
-            return
-        }
-
-        // Any other key pressed while our modifier is held means the user is doing a
-        // shortcut, not holding the key on its own — abort.
-        if cancelOnKeyDown, type == .keyDown {
-            cancelPending()
             return
         }
 
@@ -152,98 +135,56 @@ final class HotkeyMonitor: @unchecked Sendable {
         else { return }
 
         let pressed = event.flags.contains(modifier)
+        let now = ProcessInfo.processInfo.systemUptime
 
-        if startDelay > 0 {
-            handleDelayed(pressed: pressed)
-        } else {
-            handleImmediate(pressed: pressed)
-        }
-    }
-
-    /// The simple path: press starts, release stops, right away.
-    private func handleImmediate(pressed: Bool) {
-        let intent: HotkeyIntent? = lock.withLock {
-            guard pressed != isPressed else { return nil }
-            isPressed = pressed
-            return pressed ? .startDictation : .stopDictation
-        }
-        if let intent {
-            yield(intent)
-        }
-    }
-
-    /// The guarded path: only activate after holding the key alone past `startDelay`,
-    /// and cancel if released early or interrupted by another key.
-    private func handleDelayed(pressed: Bool) {
-        if pressed {
-            let work = DispatchWorkItem { [weak self] in self?.fireStart() }
+        // Decide which stream this transition belongs to, then yield outside the lock.
+        let target: (continuation: AsyncStream<HotkeyIntent>.Continuation?, intent: HotkeyIntent)? =
             lock.withLock {
-                pendingStart?.cancel()
-                pendingStart = work
+                guard pressed != isPressed else { return nil }
+                isPressed = pressed
+
+                if pressed {
+                    let isDoubleTap =
+                        lastPressWasTap && lastUpTime >= 0 && (now - lastUpTime) < gapMax
+                    downTime = now
+                    current = isDoubleTap ? .command : .dictation
+                    return (isDoubleTap ? command : dictation, .startDictation)
+                } else {
+                    lastPressWasTap = (now - downTime) < tapMax
+                    lastUpTime = now
+                    let gesture = current
+                    current = .none
+                    switch gesture {
+                    case .command: return (command, .stopDictation)
+                    case .dictation: return (dictation, .stopDictation)
+                    case .none: return nil
+                    }
+                }
             }
-            delayQueue.asyncAfter(deadline: .now() + startDelay, execute: work)
-        } else {
-            let wasActive = lock.withLock { () -> Bool in
-                pendingStart?.cancel()
-                pendingStart = nil
-                let active = isActive
-                isActive = false
-                return active
-            }
-            if wasActive { yield(.stopDictation) }
-        }
-    }
 
-    /// Fires when the key has been held alone long enough to count as intentional.
-    private func fireStart() {
-        let start = lock.withLock { () -> Bool in
-            guard pendingStart != nil else { return false }  // cancelled meanwhile
-            pendingStart = nil
-            isActive = true
-            return true
+        if let target {
+            target.continuation?.yield(target.intent)
         }
-        if start { yield(.startDictation) }
-    }
-
-    /// Drops a pending or active guarded session (used when a shortcut is detected).
-    private func cancelPending() {
-        let wasActive = lock.withLock { () -> Bool in
-            pendingStart?.cancel()
-            pendingStart = nil
-            let active = isActive
-            isActive = false
-            return active
-        }
-        if wasActive { yield(.cancel) }
-    }
-
-    private func yield(_ intent: HotkeyIntent) {
-        lock.withLock { continuation }?.yield(intent)
     }
 
     private func stop() {
-        let (tap, loop, continuation) = lock.withLock {
+        let (tap, loop) = lock.withLock {
             isStopped = true
-            pendingStart?.cancel()
-            pendingStart = nil
-            return (eventTap, runLoop, self.continuation)
+            return (eventTap, runLoop)
         }
-        if let tap {
-            CGEvent.tapEnable(tap: tap, enable: false)
-        }
-        if let loop {
-            CFRunLoopStop(loop)
-        }
-        continuation?.finish()
-        lock.withLock { self.continuation = nil }
+        if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
+        if let loop { CFRunLoopStop(loop) }
     }
 }
 
 /// Top-level, non-capturing callback so it can be used as a C function pointer. It
-/// trampolines straight back into the owning ``HotkeyMonitor``.
-private let hotkeyEventCallback: CGEventTapCallBack = { _, type, event, userInfo in
+/// trampolines straight back into the owning ``OptionHotkeyMonitor``.
+private let optionHotkeyCallback: CGEventTapCallBack = { _, type, event, userInfo in
     if let userInfo {
-        Unmanaged<HotkeyMonitor>.fromOpaque(userInfo).takeUnretainedValue().handle(type, event)
+        Unmanaged<OptionHotkeyMonitor>.fromOpaque(userInfo).takeUnretainedValue().handle(
+            type,
+            event
+        )
     }
     return Unmanaged.passUnretained(event)
 }

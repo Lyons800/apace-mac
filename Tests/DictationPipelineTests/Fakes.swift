@@ -42,7 +42,7 @@ func makeClients(
         samples: { samples },
         stop: {
             recorder.recordStop()
-            return [0.1, 0.2, 0.3]
+            return Array(repeating: 0.1, count: 8_000)  // enough to clear the min-length gate
         }
     )
 
