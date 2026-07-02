@@ -8,7 +8,9 @@ import Foundation
 actor WhisperKitEngine {
     static let shared = WhisperKitEngine()
 
-    private let model = "openai_whisper-base.en"
+    // The turbo large-v3 model: near-large-v3 accuracy at several times the speed. The
+    // old base.en default was fast but noticeably weaker. (~632 MB, downloaded once.)
+    private let model = "openai_whisper-large-v3-v20240930_turbo"
     private var kit: WhisperKit?
     private var loadTask: Task<WhisperKit, Error>?
 
