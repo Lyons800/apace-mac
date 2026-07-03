@@ -65,6 +65,16 @@ public actor CommandController {
             return
         }
 
+        if CommandPreference.controlEnabled {
+            await runControl(question)
+        } else {
+            await runAnswer(question)
+        }
+        scheduleReset()
+    }
+
+    /// Answers the command with the vision model, optionally with a screenshot.
+    private func runAnswer(_ question: String) async {
         let screenshot = CommandPreference.usesVision ? clients.screen.capture() : nil
         do {
             let answer = try await clients.vision.respond(question, screenshot)
@@ -72,7 +82,27 @@ public actor CommandController {
         } catch {
             emit(.failed("Couldn't get an answer just now."))
         }
-        scheduleReset()
+    }
+
+    /// Drives the Mac to carry out the command via the computer-use loop, mirroring its
+    /// progress into the notch and routing its confirmation prompts to the app.
+    private func runControl(_ goal: String) async {
+        let handler = AutomationHandler(
+            onStep: { [weak self] step in
+                Task { await self?.apply(step) }
+            },
+            confirm: clients.confirm
+        )
+        await clients.automation.run(goal, handler)
+    }
+
+    private func apply(_ step: AutomationStep) {
+        switch step {
+        case .thinking: emit(.thinking)
+        case .acting(let description): emit(.answer(description))
+        case .done(let summary): emit(.answer(summary))
+        case .failed(let message): emit(.failed(message))
+        }
     }
 
     private func cancel() {

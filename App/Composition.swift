@@ -1,6 +1,8 @@
 import ApaceClients
 import ApaceCore
+import AppKit
 import AudioCapture
+import Automation
 import SystemServices
 import TextCleanup
 import Transcription
@@ -26,8 +28,28 @@ extension CommandClients {
         transcriber: .selected,
         screen: .live,
         vision: .live(apiKey: { provider in CredentialStore.live.load(provider.keyAccount) }),
-        hotkey: .command
+        automation: .live(
+            screen: .live,
+            control: .live,
+            apiKey: { CredentialStore.live.load(CleanupProvider.anthropic.keyAccount) }
+        ),
+        hotkey: .command,
+        confirm: confirmControlAction
     )
+
+    /// A modal Run/Cancel gate before any risky control action. Modal on purpose — the
+    /// user's explicit approval is the safety boundary for letting the model act.
+    private static let confirmControlAction: @Sendable (String) async -> Bool = { summary in
+        await MainActor.run {
+            let alert = NSAlert()
+            alert.messageText = "Run this action?"
+            alert.informativeText = summary
+            alert.addButton(withTitle: "Run")
+            alert.addButton(withTitle: "Cancel")
+            NSApp.activate(ignoringOtherApps: true)
+            return alert.runModal() == .alertFirstButtonReturn
+        }
+    }
 }
 
 extension TextProcessorClient {

@@ -148,6 +148,17 @@ struct CommandPane: View {
                     Text(providerNote)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+
+                    Divider()
+
+                    Toggle("Let it control my Mac (experimental)", isOn: $settings.commandControl)
+                    if settings.commandControl {
+                        Text(
+                            "A command drives your mouse and keyboard to carry out the task, via Claude's computer-use. It asks before anything is sent, deleted, or bought. Needs an Anthropic key (set in Cleanup) plus Screen Recording and Accessibility permission."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
                 }
             }
         }

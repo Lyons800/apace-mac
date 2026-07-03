@@ -57,6 +57,10 @@ public final class SettingsStore {
         didSet { CommandPreference.usesVision = commandVision }
     }
 
+    public var commandControl: Bool {
+        didSet { CommandPreference.controlEnabled = commandControl }
+    }
+
     /// The provider that answers commands. Changing it reloads its API key.
     public var visionProvider: VisionProvider {
         didSet {
@@ -90,6 +94,7 @@ public final class SettingsStore {
         apiKey = ""
         commandEnabled = CommandPreference.isEnabled
         commandVision = CommandPreference.usesVision
+        commandControl = CommandPreference.controlEnabled
         visionProvider = CommandPreference.provider
         visionKey = ""
         apiKey = loadKey(

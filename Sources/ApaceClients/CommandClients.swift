@@ -30,20 +30,28 @@ public struct CommandClients: Sendable {
     public var transcriber: TranscriberClient
     public var screen: ScreenCaptureClient
     public var vision: VisionClient
+    public var automation: AutomationClient
     public var hotkey: HotkeyClient
+    /// Asks the user to approve a risky control action, supplied by the app so the
+    /// coordinator doesn't need any UI knowledge.
+    public var confirm: @Sendable (_ summary: String) async -> Bool
 
     public init(
         audio: AudioCaptureClient,
         transcriber: TranscriberClient,
         screen: ScreenCaptureClient,
         vision: VisionClient,
-        hotkey: HotkeyClient
+        automation: AutomationClient,
+        hotkey: HotkeyClient,
+        confirm: @escaping @Sendable (_ summary: String) async -> Bool
     ) {
         self.audio = audio
         self.transcriber = transcriber
         self.screen = screen
         self.vision = vision
+        self.automation = automation
         self.hotkey = hotkey
+        self.confirm = confirm
     }
 }
 
@@ -53,10 +61,18 @@ public enum CommandPreference {
     static let enabledKey = "apace.commandModeEnabled"
     static let visionKey = "apace.commandVisionEnabled"
     static let providerKey = "apace.visionProvider"
+    static let controlKey = "apace.commandControlEnabled"
 
     public static var isEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: enabledKey) }
         set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
+    }
+
+    /// Whether a command may drive the Mac (the computer-use loop) rather than only
+    /// answering. Off by default — it moves the mouse and types.
+    public static var controlEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: controlKey) }
+        set { UserDefaults.standard.set(newValue, forKey: controlKey) }
     }
 
     public static var usesVision: Bool {
