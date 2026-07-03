@@ -1,3 +1,4 @@
+import ApaceClients
 import ApaceCore
 import SwiftUI
 
@@ -16,7 +17,7 @@ public struct SettingsRootView: View {
 
     public var body: some View {
         NavigationSplitView {
-            List(SettingsSection.allCases, selection: $selection) { section in
+            List(sections, selection: $selection) { section in
                 Label(section.title, systemImage: section.icon).tag(section)
             }
             .navigationSplitViewColumnWidth(190)
@@ -25,6 +26,12 @@ public struct SettingsRootView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .frame(width: 660, height: 480)
+    }
+
+    /// Command mode (and its Mac control) is experimental — hidden unless the
+    /// experimental flag is set, so a shipped build is core dictation only.
+    private var sections: [SettingsSection] {
+        SettingsSection.allCases.filter { $0 != .command || ExperimentalPreference.isEnabled }
     }
 
     @ViewBuilder
