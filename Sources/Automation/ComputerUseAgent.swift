@@ -89,7 +89,14 @@ struct ComputerUseAgent {
                 control.perform(.key(code, flags))
             }
         case "scroll":
-            control.perform(.scroll(deltaX: 0, deltaY: -40))
+            let step = 40 * max(1, input.scrollAmount ?? 3)
+            switch input.scrollDirection {
+            case "up": control.perform(.scroll(deltaX: 0, deltaY: step))
+            case "down": control.perform(.scroll(deltaX: 0, deltaY: -step))
+            case "left": control.perform(.scroll(deltaX: -step, deltaY: 0))
+            case "right": control.perform(.scroll(deltaX: step, deltaY: 0))
+            default: control.perform(.scroll(deltaX: 0, deltaY: -step))
+            }
         case "wait":
             try? await Task.sleep(for: .milliseconds(600))
         default:

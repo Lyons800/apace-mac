@@ -2,8 +2,8 @@ import Foundation
 
 /// A minimal client for Anthropic's computer-use tool. It sends the running message
 /// history and returns the assistant's reply blocks; the agent executes any actions and
-/// feeds screenshots back as tool results. Not yet verified against the live API — the
-/// model id and tool version below are the values to confirm first.
+/// feeds screenshots back as tool results. Model / tool version / beta header match the
+/// current (2025-11-24) computer-use branch, which Claude Sonnet 5 and Opus 4.7+ use.
 struct ComputerUseAPI {
     var apiKey: String
     var displayWidth: Int
@@ -11,8 +11,8 @@ struct ComputerUseAPI {
 
     var model = "claude-sonnet-5"
     private let endpoint = "https://api.anthropic.com/v1/messages"
-    private let toolVersion = "computer_20250124"
-    private let beta = "computer-use-2025-01-24"
+    private let toolVersion = "computer_20251124"
+    private let beta = "computer-use-2025-11-24"
 
     func next(_ messages: [CUMessage]) async throws -> [CUBlock] {
         guard let url = URL(string: endpoint) else { throw CUError.badResponse }
@@ -168,8 +168,26 @@ struct CUInput: Codable {
     let action: String
     let coordinate: [Int]?
     let text: String?
+    let scrollDirection: String?
+    let scrollAmount: Int?
+
+    init(
+        action: String,
+        coordinate: [Int]? = nil,
+        text: String? = nil,
+        scrollDirection: String? = nil,
+        scrollAmount: Int? = nil
+    ) {
+        self.action = action
+        self.coordinate = coordinate
+        self.text = text
+        self.scrollDirection = scrollDirection
+        self.scrollAmount = scrollAmount
+    }
 
     enum CodingKeys: String, CodingKey {
         case action, coordinate, text
+        case scrollDirection = "scroll_direction"
+        case scrollAmount = "scroll_amount"
     }
 }
