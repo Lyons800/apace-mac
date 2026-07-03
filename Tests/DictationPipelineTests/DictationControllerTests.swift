@@ -19,6 +19,28 @@ struct DictationControllerTests {
         #expect(recorder.stopCount == 1)
     }
 
+    @Test("Inserts the quick text immediately, then swaps in the refined version")
+    func refinesAfterInserting() async {
+        let recorder = Recorder()
+        let controller = DictationController(
+            clients: makeClients(
+                recorder: recorder,
+                transcribe: { _ in "raw text" },
+                process: { _ in "cleaned text" },
+                quick: { _ in "raw text" }
+            )
+        )
+
+        await controller.handle(.startDictation)
+        await controller.handle(.stopDictation)
+
+        // The quick transcript is inserted with no wait…
+        #expect(recorder.inserted == ["raw text"])
+        // …and the cleaned version is swapped in by the background refine.
+        let swapped = await waitUntil { recorder.replaced == ["cleaned text"] }
+        #expect(swapped)
+    }
+
     @Test("The transcript is run through the processor before it's inserted")
     func processesBeforeInserting() async {
         let recorder = Recorder()

@@ -15,12 +15,15 @@ enum FakeError: Error {
 final class Recorder: @unchecked Sendable {
     private let lock = NSLock()
     private var _inserted: [String] = []
+    private var _replaced: [String] = []
     private var _stopCount = 0
 
     var inserted: [String] { lock.withLock { _inserted } }
+    var replaced: [String] { lock.withLock { _replaced } }
     var stopCount: Int { lock.withLock { _stopCount } }
 
     func append(inserted text: String) { lock.withLock { _inserted.append(text) } }
+    func append(replaced text: String) { lock.withLock { _replaced.append(text) } }
     func recordStop() { lock.withLock { _stopCount += 1 } }
 }
 
@@ -32,6 +35,7 @@ func makeClients(
     samples: [Float] = [],
     transcribe: @escaping @Sendable ([Float]) async throws -> String = { _ in "hello world" },
     process: @escaping @Sendable (String) -> String = { $0 },
+    quick: (@Sendable (String) -> String)? = nil,
     hotkey: HotkeyClient = HotkeyClient(intents: { AsyncStream { $0.finish() } })
 ) -> DictationClients {
     let audio = AudioCaptureClient(
@@ -51,8 +55,13 @@ func makeClients(
         transcribe: transcribe
     )
 
-    let inserter = TextInserterClient(insert: { recorder.append(inserted: $0) })
-    let processor = TextProcessorClient { process($0) }
+    let inserter = TextInserterClient(
+        insert: { recorder.append(inserted: $0) },
+        replaceLast: { _, text in recorder.append(replaced: text) }
+    )
+    // By default quick mirrors process, so tests that don't care see a single insert with
+    // no background replace; the two-phase test overrides quick to differ.
+    let processor = TextProcessorClient(process: { process($0) }, quick: quick ?? process)
 
     return DictationClients(
         audio: audio,

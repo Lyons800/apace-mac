@@ -106,14 +106,28 @@ public actor DictationController {
         apply(.stopRequested)
         do {
             let raw = try await clients.transcriber.transcribe(samples)
-            let text = await clients.processor.process(raw)
-            apply(.finalTranscript(text))
-            if case .inserting(let finalText) = state {
-                await clients.inserter.insert(finalText)
+            // Insert the instant tidy right away so nothing waits on AI cleanup…
+            let quick = clients.processor.quick(raw)
+            apply(.finalTranscript(quick))
+            if case .inserting(let inserted) = state {
+                await clients.inserter.insert(inserted)
                 apply(.textInserted)
+                // …then run the full pass and swap it in only if it changed.
+                refine(raw: raw, inserted: inserted)
             }
         } catch {
             apply(.failed(Self.transcriptionErrorMessage))
+        }
+    }
+
+    /// Runs the full processing pass in the background and replaces the just-inserted
+    /// quick text if cleanup changed it — so the user sees text instantly and the
+    /// cleaned version lands a moment later, instead of waiting for the model.
+    private func refine(raw: String, inserted: String) {
+        Task { [clients] in
+            let full = await clients.processor.process(raw)
+            guard full != inserted else { return }
+            await clients.inserter.replaceLast(inserted.count, full)
         }
     }
 

@@ -66,8 +66,18 @@ public struct TextInserterClient: Sendable {
     /// Inserts `text` at the cursor — paste + ⌘V primary, with accessibility and
     /// synthetic-keystroke fallbacks handled inside the live adapter.
     public var insert: @Sendable (String) async -> Void
+    /// Replaces the last `deleteCount` characters just inserted with `text` — used to
+    /// swap the quick transcript for the AI-cleaned one once it's ready.
+    public var replaceLast: @Sendable (_ deleteCount: Int, _ text: String) async -> Void
 
-    public init(insert: @escaping @Sendable (String) async -> Void) {
+    public init(
+        insert: @escaping @Sendable (String) async -> Void,
+        replaceLast: @escaping @Sendable (_ deleteCount: Int, _ text: String) async -> Void = {
+            _,
+            _ in
+        }
+    ) {
         self.insert = insert
+        self.replaceLast = replaceLast
     }
 }

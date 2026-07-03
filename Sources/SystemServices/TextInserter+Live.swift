@@ -13,9 +13,14 @@ extension TextInserterClient {
     ///
     /// Secure Event Input (password fields, some terminals) blocks synthetic events
     /// entirely, so we detect it and decline rather than silently dropping characters.
-    public static let live = TextInserterClient { text in
-        await MainActor.run { TextInserter.insert(text) }
-    }
+    public static let live = TextInserterClient(
+        insert: { text in
+            await MainActor.run { TextInserter.insert(text) }
+        },
+        replaceLast: { deleteCount, text in
+            await MainActor.run { TextInserter.replaceLast(deleteCount, with: text) }
+        }
+    )
 }
 
 /// The concrete insertion mechanics, kept off the `TextInserterClient` value so the
@@ -30,6 +35,32 @@ private enum TextInserter {
         guard !text.isEmpty else { return }
         guard !IsSecureEventInputEnabled() else { return }
         paste(text)
+    }
+
+    /// Replaces the last `count` inserted characters with `text`: selects them by
+    /// holding Shift and pressing Left `count` times, then pastes over the selection.
+    /// Selecting (rather than deleting) keeps it to one visible change and lets the app's
+    /// own undo treat it as a replace.
+    @MainActor
+    static func replaceLast(_ count: Int, with text: String) {
+        guard count > 0 else { return }
+        guard !IsSecureEventInputEnabled() else { return }
+        selectBackward(count)
+        paste(text)
+    }
+
+    @MainActor
+    private static func selectBackward(_ count: Int) {
+        guard let source = CGEventSource(stateID: .combinedSessionState) else { return }
+        let left = CGKeyCode(kVK_LeftArrow)
+        for _ in 0..<count {
+            let down = CGEvent(keyboardEventSource: source, virtualKey: left, keyDown: true)
+            down?.flags = .maskShift
+            down?.post(tap: .cgAnnotatedSessionEventTap)
+            let up = CGEvent(keyboardEventSource: source, virtualKey: left, keyDown: false)
+            up?.flags = .maskShift
+            up?.post(tap: .cgAnnotatedSessionEventTap)
+        }
     }
 
     @MainActor

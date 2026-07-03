@@ -35,15 +35,21 @@ extension TextProcessorClient {
     /// every dictation so changes take effect immediately: optional AI cleanup first
     /// (on-device, falling back to the user's API key) when enabled, then the user's
     /// custom vocabulary, which gets the final say on exact spellings.
-    static let live = TextProcessorClient { text in
-        // Instant deterministic tidy first (filler, spacing) — no latency. Optional AI
-        // cleanup layers on top only when enabled; vocabulary always gets the last say.
-        var result = FastTidy.apply(text)
-        if CleanupPreference.isEnabled {
-            result = await cleanup.process(result)
+    static let live = TextProcessorClient(
+        process: { text in
+            // The full pass: instant tidy, then optional AI cleanup, then vocabulary.
+            var result = FastTidy.apply(text)
+            if CleanupPreference.isEnabled {
+                result = await cleanup.process(result)
+            }
+            return VocabularyPreference.vocabulary.apply(to: result)
+        },
+        quick: { text in
+            // The instant pass inserted immediately — deterministic tidy + vocabulary, no
+            // model. When AI cleanup is on, the coordinator refines this in the background.
+            VocabularyPreference.vocabulary.apply(to: FastTidy.apply(text))
         }
-        return VocabularyPreference.vocabulary.apply(to: result)
-    }
+    )
 
     private static let cleanup = TextProcessorClient.aiCleanup(
         provider: { CleanupPreference.provider },
