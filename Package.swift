@@ -22,7 +22,7 @@ let package = Package(
         .library(name: "Features", targets: ["Features"]),
         .library(
             name: "Adapters",
-            targets: ["AudioCapture", "Transcription", "SystemServices", "TextCleanup"]
+            targets: ["AudioCapture", "Transcription", "SystemServices", "TextCleanup", "Automation"]
         ),
         .library(name: "ApaceKit", targets: ["ApaceCore", "ApaceClients", "DictationPipeline"]),
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
@@ -57,6 +57,7 @@ let package = Package(
             ]
         ),
         .target(name: "SystemServices", dependencies: ["ApaceClients"]),
+        .target(name: "Automation", dependencies: ["ApaceClients", "ApaceCore"]),
         .target(
             name: "TextCleanup",
             dependencies: [
@@ -89,5 +90,6 @@ let package = Package(
             dependencies: ["Features", "ApaceCore", "ApaceClients"]
         ),
         .testTarget(name: "TextCleanupTests", dependencies: ["TextCleanup"]),
+        .testTarget(name: "AutomationTests", dependencies: ["Automation"]),
     ]
 )

@@ -29,6 +29,14 @@ speak → transcribe → [ screenshot → Claude → ControlAction → execute ]
 | Command-mode wiring (route actionable commands to the loop) | DictationPipeline / Features | ▢ next |
 | Fast paths for common apps (Messages/WhatsApp via AppleScript/URL) | SystemServices | ▢ optional |
 
+## Decisions (locked)
+
+- **Model:** Claude Sonnet with the computer-use tool.
+- **Safety gate:** confirm before *risky/outward* actions only (send, delete, post, buy);
+  navigation (open, click, scroll, type into a field) runs freely. v1 gates at the task
+  level — an outward-looking goal ("message …", "reply …", "delete …", "buy …") shows a
+  Run/Cancel confirmation before the loop touches anything; per-action gating can follow.
+
 ## Safety (non-negotiable)
 
 An LLM moving the mouse can do the wrong thing. Rules baked into the loop:
