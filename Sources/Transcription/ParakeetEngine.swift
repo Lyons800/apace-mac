@@ -35,6 +35,11 @@ actor ParakeetEngine {
         Task { _ = try? await ready() }
     }
 
+    /// Awaits the model being loaded — used to drive the "preparing model" indicator.
+    func prepare() async {
+        _ = try? await ready()
+    }
+
     private func ready() async throws -> AsrManager {
         if let manager { return manager }
         if let loadTask { return try await loadTask.value }

@@ -31,6 +31,11 @@ actor WhisperKitEngine {
         Task { _ = try? await ready() }
     }
 
+    /// Awaits the model being loaded — used to drive the "preparing model" indicator.
+    func prepare() async {
+        _ = try? await ready()
+    }
+
     private func ready() async throws -> WhisperKit {
         if let kit { return kit }
         if let loadTask { return try await loadTask.value }

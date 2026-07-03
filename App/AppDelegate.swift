@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let permissions = PermissionsModel(client: .live)
     let settings = SettingsStore(credentials: .live)
     let vocabulary = VocabularyStore()
+    let modelStatus = ModelStatus(isReady: !EnginePreference.engine.requiresModelDownload)
 
     private var overlay: NotchOverlayController?
     private var onboarding: OnboardingWindowController?
@@ -29,8 +30,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         command.activate()
 
         // Warm up the chosen engine's model so the first dictation doesn't wait on a
-        // download.
-        TranscriberClient.preload(EnginePreference.engine)
+        // download, and flip the menu's "preparing model" line off once it's ready.
+        let engine = EnginePreference.engine
+        if engine.requiresModelDownload {
+            Task { @MainActor in
+                await TranscriberClient.prepare(engine)
+                modelStatus.isReady = true
+            }
+        }
 
         // Likewise warm up the local cleanup model when on-device cleanup is on and will
         // fall back to it (no Apple Intelligence).

@@ -10,6 +10,7 @@ struct ApaceApp: App {
         MenuBarExtra {
             MenuContent(
                 dictation: delegate.dictation,
+                modelStatus: delegate.modelStatus,
                 openSettings: delegate.openSettings,
                 openHistory: delegate.openHistory
             )
@@ -23,12 +24,19 @@ struct ApaceApp: App {
 /// stays as the always-available controls and status.
 private struct MenuContent: View {
     let dictation: DictationModel
+    let modelStatus: ModelStatus
     let openSettings: () -> Void
     let openHistory: () -> Void
 
     var body: some View {
         Text(dictation.state.menuBarTitle)
             .font(.headline)
+
+        if !modelStatus.isReady {
+            Text("Preparing dictation model… (first launch)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
 
         Divider()
 
