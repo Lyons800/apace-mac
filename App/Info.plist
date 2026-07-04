@@ -28,5 +28,11 @@
 	<string>Apace listens to your microphone to transcribe what you say. Audio is processed on your Mac and never leaves it.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Apace uses on-device speech recognition to turn your speech into text. Nothing is sent to a server.</string>
+	<key>SUFeedURL</key>
+	<string>https://github.com/Lyons800/apace-mac/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>$(SPARKLE_PUBLIC_ED_KEY)</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
 </dict>
 </plist>

@@ -1,0 +1,59 @@
+name: Release
+
+# Cutting a release is deliberate: push a version tag (e.g. v0.1.0) to run this.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Import Developer ID certificate
+        env:
+          CERT_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          KEYCHAIN=build.keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -t 3600 -l "$KEYCHAIN"
+          echo "$CERT_P12_BASE64" | base64 --decode > cert.p12
+          security import cert.p12 -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          rm cert.p12
+
+      - name: Build, sign, and package the DMG
+        run: scripts/package.sh
+
+      - name: Notarize and staple
+        env:
+          AC_USERNAME: ${{ secrets.NOTARY_APPLE_ID }}
+          AC_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+          AC_TEAM: ${{ secrets.NOTARY_TEAM }}
+        run: scripts/notarize.sh
+
+      - name: Sign the update and build the appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: scripts/appcast.sh "${{ github.ref_name }}"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            dist/Apace.dmg dist/appcast.xml \
+            --title "Apace ${{ github.ref_name }}" \
+            --generate-notes

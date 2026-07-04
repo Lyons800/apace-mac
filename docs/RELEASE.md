@@ -1,52 +1,68 @@
 # Releasing Apace
 
-Apace ships as a Developer ID-signed, notarized DMG. The steps below take a clean
-checkout to a distributable build. Nothing here is run automatically — cutting a public
-release is a deliberate, manual step.
+Apace ships as a Developer ID-signed, notarized DMG with Sparkle auto-updates. There are
+two ways to cut a release: **manual** (one-time, on your Mac) and **CI** (push a tag).
+Publishing is always deliberate.
 
-## 1. Package (no secrets)
+## One-time setup
+
+### 1. Sparkle key pair
+
+Generate the EdDSA key pair once (the private key never enters the repo):
 
 ```sh
-scripts/package.sh
+# generate_keys ships in the Sparkle release tarball (github.com/sparkle-project/Sparkle)
+./bin/generate_keys
 ```
 
-Builds a Release, Developer ID-signed, hardened-runtime `Apace.app` and wraps it in
-`dist/Apace.dmg`. Verifies the signature and hardened-runtime flag before packaging.
+- Put the **public** key in `project.yml` → `SPARKLE_PUBLIC_ED_KEY` and commit it (public is fine).
+- Keep the **private** key in your login Keychain (generate_keys stores it) and add it as the
+  `SPARKLE_PRIVATE_KEY` GitHub secret for CI. Never commit it.
 
-## 2. Notarize (needs an app-specific password)
+### 2. GitHub secrets (for the release workflow)
 
-Notarization requires an Apple ID **app-specific password** (create one at
-appleid.apple.com → Sign-In and Security). It is read from the environment and never
-written to disk or committed.
+Add these in the repo → Settings → Secrets and variables → Actions:
+
+| Secret | What |
+|---|---|
+| `DEVELOPER_ID_P12` | base64 of your exported "Developer ID Application" cert (`.p12`) |
+| `DEVELOPER_ID_P12_PASSWORD` | the `.p12` export password |
+| `KEYCHAIN_PASSWORD` | any string — a throwaway password for the CI keychain |
+| `NOTARY_APPLE_ID` | your Apple ID (e.g. `oisinlyons13@gmail.com`) |
+| `NOTARY_PASSWORD` | an Apple **app-specific password** (appleid.apple.com) |
+| `NOTARY_TEAM` | `BWD692VD35` |
+| `SPARKLE_PRIVATE_KEY` | the Sparkle EdDSA private key |
+
+## Manual release (on your Mac)
 
 ```sh
+scripts/package.sh                                   # build + sign + DMG
 export AC_USERNAME="you@example.com"
-export AC_PASSWORD="abcd-efgh-ijkl-mnop"   # app-specific password
+export AC_PASSWORD="abcd-efgh-ijkl-mnop"             # app-specific password
 export AC_TEAM="BWD692VD35"
-scripts/notarize.sh
+scripts/notarize.sh                                  # notarize + staple
+export SPARKLE_PRIVATE_KEY="<private key>"
+scripts/appcast.sh v0.1.0                            # sign update + appcast
 ```
 
-This submits the DMG to Apple, waits for the result, and staples the ticket. The
-stapled `dist/Apace.dmg` is what you distribute.
+Then create a GitHub Release for the tag and upload `dist/Apace.dmg` + `dist/appcast.xml`.
 
-## 3. Publish
+## CI release (recommended, repeatable)
 
-Upload the DMG and, once auto-updates land (below), update the appcast. **Publishing is
-gated on explicit sign-off** — don't push a release tag or upload publicly without it.
+With the secrets above set, just push a version tag:
 
-## Still to wire: auto-updates (Sparkle)
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
 
-Auto-updates aren't integrated yet. The plan:
-
-1. Add the Sparkle Swift package and an `SPUStandardUpdaterController`, plus a
-   "Check for Updates…" menu item.
-2. Generate an EdDSA key pair (`generate_keys`); keep the private key in the login
-   Keychain (never in the repo), put the public key in `Info.plist` as `SUPublicEDKey`.
-3. Host an `appcast.xml` and set `SUFeedURL`; sign each build's appcast entry.
-4. A CI release workflow can then run `package.sh` → `notarize.sh` → sign + publish the
-   appcast, triggered by a version tag.
+`.github/workflows/release.yml` then builds, signs, notarizes, staples, signs the update,
+builds the appcast, and publishes a GitHub Release with `Apace.dmg` + `appcast.xml`.
+`SUFeedURL` already points at `releases/latest/download/appcast.xml`, so shipped apps see
+the update automatically.
 
 ## Secrets
 
-The signing certificate lives in the login Keychain; the notarization password is
-supplied per-run via the environment. Neither belongs in this public repo.
+The signing cert lives in the login Keychain (or a GitHub secret for CI); the notarization
+and Sparkle private keys are supplied per-run via the environment / GitHub secrets. None of
+them belong in this public repo.

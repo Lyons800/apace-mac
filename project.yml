@@ -13,6 +13,9 @@ packages:
   DynamicNotchKit:
     url: https://github.com/MrKai77/DynamicNotchKit
     exactVersion: 1.1.0
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.0"
 
 targets:
   Apace:
@@ -30,12 +33,16 @@ targets:
       - package: ApaceKit
         product: DesignSystem
       - package: DynamicNotchKit
+      - package: Sparkle
     settings:
       base:
         PRODUCT_NAME: Apace
         PRODUCT_BUNDLE_IDENTIFIER: so.apace
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
+        # Sparkle EdDSA public key for verifying updates. Generate with Sparkle's
+        # `generate_keys`; paste the public key here (the private key stays out of git).
+        SPARKLE_PUBLIC_ED_KEY: ""
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: App/Info.plist
         CODE_SIGN_ENTITLEMENTS: App/Apace.entitlements

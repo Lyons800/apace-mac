@@ -11,6 +11,8 @@ struct ApaceApp: App {
             MenuContent(
                 dictation: delegate.dictation,
                 modelStatus: delegate.modelStatus,
+                canCheckForUpdates: delegate.canCheckForUpdates,
+                checkForUpdates: delegate.checkForUpdates,
                 openSettings: delegate.openSettings,
                 openHistory: delegate.openHistory
             )
@@ -25,6 +27,8 @@ struct ApaceApp: App {
 private struct MenuContent: View {
     let dictation: DictationModel
     let modelStatus: ModelStatus
+    let canCheckForUpdates: Bool
+    let checkForUpdates: () -> Void
     let openSettings: () -> Void
     let openHistory: () -> Void
 
@@ -43,6 +47,10 @@ private struct MenuContent: View {
         Button("History…", action: openHistory)
         Button("Settings…", action: openSettings)
             .keyboardShortcut(",")
+
+        if canCheckForUpdates {
+            Button("Check for Updates…", action: checkForUpdates)
+        }
 
         Button("Quit Apace") {
             NSApplication.shared.terminate(nil)

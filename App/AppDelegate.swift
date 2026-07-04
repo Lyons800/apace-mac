@@ -1,6 +1,7 @@
 import ApaceClients
 import AppKit
 import Features
+import Sparkle
 import SystemServices
 import TextCleanup
 import Transcription
@@ -16,6 +17,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let settings = SettingsStore(credentials: .live)
     let vocabulary = VocabularyStore()
     let modelStatus = ModelStatus(isReady: !EnginePreference.engine.requiresModelDownload)
+
+    /// Sparkle auto-updater — created only once a public key is configured, so a
+    /// developer build (no key yet) doesn't try to check and error.
+    private let updaterController: SPUStandardUpdaterController? = {
+        let key = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String ?? ""
+        guard !key.isEmpty else { return nil }
+        return SPUStandardUpdaterController(
+            startingUpdater: true,
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
+    }()
+
+    /// Whether auto-updates are wired up (a public key + feed are configured).
+    var canCheckForUpdates: Bool { updaterController != nil }
+
+    func checkForUpdates() { updaterController?.updater.checkForUpdates() }
 
     private var overlay: NotchOverlayController?
     private var onboarding: OnboardingWindowController?
