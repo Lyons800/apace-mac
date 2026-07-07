@@ -36,7 +36,7 @@ let package = Package(
         .package(url: "https://github.com/FluidInference/FluidAudio", exact: "0.15.4"),
         // On-device cleanup LLM for Macs without Apple Intelligence (a small local model
         // via MLX). 2.31.3 has the fixed manifest and pairs with WhisperKit 1.0.
-        .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "2.31.3"),
+        .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "3.31.4"),
     ],
     targets: [
         // MARK: Domain
