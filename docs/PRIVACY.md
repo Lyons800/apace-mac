@@ -2,7 +2,7 @@
 
 **On-device by default.** Apace collects nothing about you — no accounts, no analytics,
 no servers we run that see your data. This is the canonical policy; the public version
-lives at https://apace.so/privacy.
+lives at https://tryapace.com/privacy.
 
 ## On-device by default
 
@@ -39,4 +39,4 @@ you add live in your macOS Keychain. Delete them any time. We never see either.
 
 Apace is free and its source is public, so you can verify all of the above yourself.
 
-_Last updated: July 2026 · hello@apace.so_
+_Last updated: July 2026 · hello@tryapace.com_
