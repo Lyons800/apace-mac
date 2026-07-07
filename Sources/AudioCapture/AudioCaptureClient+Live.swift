@@ -25,6 +25,7 @@ extension AudioCaptureClient {
 /// failure by the coordinator.
 enum AudioCaptureError: Error {
     case formatUnavailable
+    case microphoneUnavailable
 }
 
 /// Owns the audio engine and the recording buffer. Marked `@unchecked Sendable`
@@ -54,7 +55,18 @@ final class MicrophoneRecorder: @unchecked Sendable {
         }
 
         let input = engine.inputNode
+
+        // Never install over an existing tap — `installTap` throws an *Objective-C*
+        // exception (uncatchable in Swift, so a hard crash) if a tap is already there.
+        input.removeTap(onBus: 0)
+
+        // A missing/denied mic surfaces as a zero-channel, zero-rate format; installing a
+        // tap with it also throws that uncatchable exception. Bail out with a Swift error
+        // the coordinator can turn into a friendly "couldn't access the microphone".
         let inputFormat = input.outputFormat(forBus: 0)
+        guard inputFormat.channelCount > 0, inputFormat.sampleRate > 0 else {
+            throw AudioCaptureError.microphoneUnavailable
+        }
         guard let converter = AVAudioConverter(from: inputFormat, to: targetFormat) else {
             throw AudioCaptureError.formatUnavailable
         }
