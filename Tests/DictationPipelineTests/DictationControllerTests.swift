@@ -19,6 +19,15 @@ struct DictationControllerTests {
         #expect(recorder.stopCount == 1)
     }
 
+    @Test("Silence is dropped, real speech passes the gate")
+    func speechGate() {
+        // Silence and near-silent noise-floor buffers are rejected; a speech-level buffer
+        // passes.
+        #expect(!DictationController.hasSpeech(Array(repeating: 0, count: 8_000)))
+        #expect(!DictationController.hasSpeech(Array(repeating: 0.001, count: 8_000)))
+        #expect(DictationController.hasSpeech(Array(repeating: 0.3, count: 8_000)))
+    }
+
     @Test("Inserts the quick text immediately, then swaps in the refined version")
     func refinesAfterInserting() async {
         let recorder = Recorder()

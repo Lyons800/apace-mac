@@ -20,6 +20,8 @@ public actor DictationController {
     private var previewTask: Task<Void, Never>?
     /// Samples the microphone level off the capture stream for the waveform.
     private var captureTask: Task<Void, Never>?
+    /// The background AI-cleanup pass; cancelled when a new dictation starts.
+    private var refineTask: Task<Void, Never>?
 
     private let continuation: AsyncStream<DictationState>.Continuation
     private let levelContinuation: AsyncStream<Double>.Continuation
@@ -76,6 +78,7 @@ public actor DictationController {
 
     private func start() async {
         guard !isActive else { return }
+        refineTask?.cancel()  // a prior dictation's cleanup must not land on this one
         apply(.startRequested)
         do {
             let audio = try clients.audio.start()
@@ -103,6 +106,12 @@ public actor DictationController {
             apply(.cancelled)
             return
         }
+        // No speech in the buffer (held the key but said nothing) — drop it rather than
+        // transcribe silence, which makes the model hallucinate text.
+        guard Self.hasSpeech(samples) else {
+            apply(.cancelled)
+            return
+        }
         apply(.stopRequested)
         do {
             let raw = try await clients.transcriber.transcribe(samples)
@@ -122,19 +131,44 @@ public actor DictationController {
 
     /// Runs the full processing pass in the background and replaces the just-inserted
     /// quick text if cleanup changed it — so the user sees text instantly and the
-    /// cleaned version lands a moment later, instead of waiting for the model.
+    /// cleaned version lands a moment later, instead of waiting for the model. Cancelled
+    /// the moment another dictation starts, so a late refine can never drop a previous
+    /// transcript at the new cursor.
     private func refine(raw: String, inserted: String) {
-        Task { [clients] in
+        refineTask?.cancel()
+        refineTask = Task { [clients] in
             let full = await clients.processor.process(raw)
-            guard full != inserted else { return }
+            guard !Task.isCancelled, full != inserted else { return }
             await clients.inserter.replaceLast(inserted.count, full)
         }
     }
 
     private func cancel() {
         guard isActive else { return }
+        refineTask?.cancel()
         cleanUp()
         apply(.cancelled)
+    }
+
+    /// Whether the buffer actually contains speech, by the loudest ~0.25s window. A held
+    /// key with no speech stays near the noise floor; transcribing it just makes the
+    /// model hallucinate, so we drop it. Windowed (not overall) so a short phrase inside
+    /// a long, mostly-silent hold still counts.
+    static func hasSpeech(_ samples: [Float]) -> Bool {
+        let window = 4_000
+        var loudest: Float = -100
+        var index = 0
+        while index < samples.count {
+            let end = min(index + window, samples.count)
+            var sumOfSquares: Float = 0
+            for i in index..<end {
+                sumOfSquares += samples[i] * samples[i]
+            }
+            let rms = (sumOfSquares / Float(end - index)).squareRoot()
+            loudest = max(loudest, 20 * log10(max(rms, 1e-7)))
+            index += window
+        }
+        return loudest > -45
     }
 
     /// Drives the live preview by re-transcribing the recent audio on a cadence. Unlike
