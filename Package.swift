@@ -33,7 +33,7 @@ let package = Package(
         // WhisperKit 1.0 vendors its tokenizer and uses swift-transformers 1.2, which
         // co-resolves with the MLX cleanup model below (0.14.1 pinned an older one).
         .package(url: "https://github.com/argmaxinc/WhisperKit", exact: "1.0.0"),
-        .package(url: "https://github.com/FluidInference/FluidAudio", exact: "0.15.4"),
+        .package(url: "https://github.com/FluidInference/FluidAudio", exact: "0.15.5"),
         // On-device cleanup LLM for Macs without Apple Intelligence (a small local model
         // via MLX). 2.31.3 has the fixed manifest and pairs with WhisperKit 1.0.
         .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "2.31.3"),
