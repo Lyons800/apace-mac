@@ -10,15 +10,23 @@ final class CommandRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var _questions: [String] = []
     private var _images: [Data?] = []
+    private var _visionQuestions: [String] = []
     private var _transcribeCalls = 0
     private var _automationCancelled = false
     private var _automationGoals: [String] = []
+    private var _inserted: [String] = []
+    private var _controlActions: [ControlAction] = []
+    private var _routedFields: [FocusedField?] = []
 
     var questions: [String] { lock.withLock { _questions } }
     var images: [Data?] { lock.withLock { _images } }
+    var visionQuestions: [String] { lock.withLock { _visionQuestions } }
     var transcribeCalls: Int { lock.withLock { _transcribeCalls } }
     var automationCancelled: Bool { lock.withLock { _automationCancelled } }
     var automationGoals: [String] { lock.withLock { _automationGoals } }
+    var inserted: [String] { lock.withLock { _inserted } }
+    var controlActions: [ControlAction] { lock.withLock { _controlActions } }
+    var routedFields: [FocusedField?] { lock.withLock { _routedFields } }
 
     func ask(_ question: String, image: Data?) {
         lock.withLock {
@@ -26,9 +34,13 @@ final class CommandRecorder: @unchecked Sendable {
             _images.append(image)
         }
     }
+    func recordVision(_ question: String) { lock.withLock { _visionQuestions.append(question) } }
     func recordTranscribe() { lock.withLock { _transcribeCalls += 1 } }
     func recordAutomationCancelled() { lock.withLock { _automationCancelled = true } }
     func recordAutomation(goal: String) { lock.withLock { _automationGoals.append(goal) } }
+    func recordInsert(_ text: String) { lock.withLock { _inserted.append(text) } }
+    func recordControl(_ action: ControlAction) { lock.withLock { _controlActions.append(action) } }
+    func recordRoutedField(_ field: FocusedField?) { lock.withLock { _routedFields.append(field) } }
 }
 
 /// Speech-level samples long enough to clear the command controller's speech gate.
@@ -39,6 +51,10 @@ func makeCommandClients(
     samples: [Float] = speechSamples,
     transcribe: @escaping @Sendable ([Float]) async throws -> String = { _ in "open my calendar" },
     answer: @escaping @Sendable (String, Data?) async throws -> String = { q, _ in "answer to \(q)" },
+    route: @escaping @Sendable (String, FocusedField?, Data?) async throws -> CommandDecision = {
+        q, _, _ in .answer("answer to \(q)")
+    },
+    field: FocusedField? = nil,
     screenshot: Data? = Data([0x1]),
     automation: AutomationClient = AutomationClient { _, handler in
         handler.onStep(.done("did it"))
@@ -59,9 +75,20 @@ func makeCommandClients(
         ),
         screen: ScreenCaptureClient(capture: { screenshot }),
         vision: VisionClient(respond: { question, image in
-            recorder.ask(question, image: image)
+            recorder.recordVision(question)
             return try await answer(question, image)
         }),
+        router: CommandRouterClient(route: { request, field, image in
+            recorder.ask(request, image: image)
+            recorder.recordRoutedField(field)
+            return try await route(request, field, image)
+        }),
+        focus: FocusClient(focusedField: { field }),
+        inserter: TextInserterClient(
+            insert: { recorder.recordInsert($0) },
+            replaceLast: { _, _ in }
+        ),
+        control: ComputerControlClient(perform: { recorder.recordControl($0) }),
         automation: automation,
         hotkey: HotkeyClient(intents: { AsyncStream { $0.finish() } }),
         confirm: { _ in true }
@@ -189,7 +216,11 @@ struct CommandControllerTests {
             }
         }
         let controller = CommandController(
-            clients: makeCommandClients(recorder: recorder, automation: hangingAutomation),
+            clients: makeCommandClients(
+                recorder: recorder,
+                route: { _, _, _ in .control },
+                automation: hangingAutomation
+            ),
             preferences: makePreferences(control: true)
         )
 
@@ -203,5 +234,103 @@ struct CommandControllerTests {
         let cancelled = await waitUntil { recorder.automationCancelled }
         #expect(cancelled)
         await #expect(controller.currentActivity == .listening(partial: ""))
+    }
+
+    @Test("An insert decision pastes into the focused field without driving the Mac")
+    func insertDecision() async {
+        let recorder = CommandRecorder()
+        let field = FocusedField(appName: "WhatsApp", text: "see you at eight")
+        let controller = CommandController(
+            clients: makeCommandClients(
+                recorder: recorder,
+                route: { _, field, _ in
+                    .insert(text: "até às oito — \(field?.appName ?? "?")", replacesDraft: false)
+                },
+                field: field,
+                automation: AutomationClient { goal, _ in recorder.recordAutomation(goal: goal) }
+            ),
+            preferences: makePreferences(control: true)
+        )
+
+        await controller.handle(.startDictation)
+        await controller.handle(.stopDictation)
+        #expect(recorder.inserted == ["até às oito — WhatsApp"])
+        #expect(recorder.automationGoals.isEmpty)
+        #expect(recorder.controlActions.isEmpty)
+        await #expect(controller.currentActivity == .answer("até às oito — WhatsApp"))
+    }
+
+    @Test("A replacing insert selects the draft with ⌘A before pasting")
+    func replacingInsert() async {
+        let recorder = CommandRecorder()
+        let controller = CommandController(
+            clients: makeCommandClients(
+                recorder: recorder,
+                route: { _, _, _ in .insert(text: "até já", replacesDraft: true) }
+            ),
+            preferences: makePreferences()
+        )
+
+        await controller.handle(.startDictation)
+        await controller.handle(.stopDictation)
+        #expect(recorder.inserted == ["até já"])
+        guard case .key(let code, let flags)? = recorder.controlActions.first else {
+            Issue.record("expected a ⌘A before the paste")
+            return
+        }
+        #expect(code == 0)
+        #expect(flags == .maskCommand)
+    }
+
+    @Test("A control decision with the toggle off explains instead of acting")
+    func controlDisabled() async {
+        let recorder = CommandRecorder()
+        let controller = CommandController(
+            clients: makeCommandClients(
+                recorder: recorder,
+                route: { _, _, _ in .control },
+                automation: AutomationClient { goal, _ in recorder.recordAutomation(goal: goal) }
+            ),
+            preferences: makePreferences(control: false)
+        )
+
+        await controller.handle(.startDictation)
+        await controller.handle(.stopDictation)
+        #expect(recorder.automationGoals.isEmpty)
+        await #expect(
+            controller.currentActivity
+                == .answer("Turn on “Let it control my Mac” (Settings → Command) for that."))
+    }
+
+    @Test("A router failure falls back to the plain answer path")
+    func routerFallback() async {
+        let recorder = CommandRecorder()
+        let controller = CommandController(
+            clients: makeCommandClients(
+                recorder: recorder,
+                route: { _, _, _ in throw FakeError.transcriptionFailed }
+            ),
+            preferences: makePreferences()
+        )
+
+        await controller.handle(.startDictation)
+        await controller.handle(.stopDictation)
+        #expect(recorder.visionQuestions == ["open my calendar"])
+        await #expect(controller.currentActivity == .answer("answer to open my calendar"))
+    }
+
+    @Test("The router receives the focused field alongside the screenshot")
+    func routerContext() async {
+        let recorder = CommandRecorder()
+        let field = FocusedField(appName: "Mail", selectedText: "hi", text: "hi there")
+        let controller = CommandController(
+            clients: makeCommandClients(recorder: recorder, field: field),
+            preferences: makePreferences()
+        )
+
+        await controller.handle(.startDictation)
+        await controller.handle(.stopDictation)
+        #expect(recorder.routedFields == [field])
+        #expect(recorder.images == [Data([0x1])])
     }
 }

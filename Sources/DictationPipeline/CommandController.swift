@@ -1,5 +1,6 @@
 import ApaceClients
 import ApaceCore
+import CoreGraphics
 import Foundation
 import os
 
@@ -96,11 +97,47 @@ public actor CommandController {
             return
         }
 
-        if preferences.controlEnabled() {
-            runControl(question)
-        } else {
+        await runRouted(question)
+    }
+
+    /// One router round trip decides the command's shape: an answer for the notch,
+    /// text for the focused field, or escalation to the control loop. A router
+    /// failure falls back to the plain answer path so Q&A never breaks.
+    private func runRouted(_ question: String) async {
+        let field = clients.focus.focusedField()
+        let screenshot =
+            preferences.usesVision() && preferences.provider().supportsImages
+            ? clients.screen.capture() : nil
+        let decision: CommandDecision
+        do {
+            decision = try await clients.router.route(question, field, screenshot)
+        } catch {
+            Self.log.error("router failed, falling back to answer: \(error)")
             await runAnswer(question)
             scheduleReset()
+            return
+        }
+        switch decision {
+        case .answer(let text):
+            emit(.answer(text))
+            scheduleReset()
+        case .insert(let text, let replacesDraft):
+            if replacesDraft {
+                // Select the field's draft so the paste replaces it, and give the
+                // frontmost app a beat to apply the selection before ⌘V.
+                clients.control.perform(.key(0, .maskCommand))  // ⌘A
+                try? await Task.sleep(for: .milliseconds(80))
+            }
+            await clients.inserter.insert(text)
+            emit(.answer(text))
+            scheduleReset()
+        case .control:
+            if preferences.controlEnabled() {
+                runControl(question)
+            } else {
+                emit(.answer("Turn on “Let it control my Mac” (Settings → Command) for that."))
+                scheduleReset()
+            }
         }
     }
 
