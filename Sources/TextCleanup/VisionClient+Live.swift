@@ -12,6 +12,12 @@ extension VisionClient {
             switch CommandPreference.provider {
             case .onDevice:
                 return await AppleAssistant.answer(question)
+            case .anthropic:
+                guard let key = apiKey(.anthropic), !key.isEmpty else {
+                    return "Add an Anthropic API key (Settings → Cleanup) to answer commands."
+                }
+                return try await AnthropicVision.respond(
+                    question: question, image: image, apiKey: key)
             case .gemini:
                 guard let key = apiKey(.gemini), !key.isEmpty else {
                     return

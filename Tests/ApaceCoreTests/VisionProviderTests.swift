@@ -16,13 +16,19 @@ struct VisionProviderTests {
         // On-device Foundation Models are text-only today, so capturing a screenshot
         // for them is wasted work and a misleading "vision" toggle.
         #expect(!VisionProvider.onDevice.supportsImages)
+        #expect(VisionProvider.anthropic.supportsImages)
         #expect(VisionProvider.gemini.supportsImages)
+    }
+
+    @Test("Anthropic vision shares the Cleanup key so it's entered once")
+    func anthropicKeyShared() {
+        #expect(VisionProvider.anthropic.keyAccount == CleanupProvider.anthropic.keyAccount)
     }
 
     @Test("The mode recommends a matching vision provider")
     func recommended() {
         #expect(VisionProvider.recommended(for: .onDevice) == .onDevice)
-        #expect(VisionProvider.recommended(for: .cloud) == .gemini)
+        #expect(VisionProvider.recommended(for: .cloud) == .anthropic)
     }
 
     @Test("Command activity knows when it's on screen")

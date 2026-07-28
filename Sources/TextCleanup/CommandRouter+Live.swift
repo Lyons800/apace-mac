@@ -16,6 +16,14 @@ extension CommandRouterClient {
             case .onDevice:
                 reply = try await AppleAssistant.raw(
                     instructions: RouterPrompt.instructions, prompt: prompt)
+            case .anthropic:
+                guard let key = apiKey(.anthropic), !key.isEmpty else { throw RouterError.noKey }
+                reply = try await AnthropicVision.respond(
+                    question: prompt,
+                    image: image,
+                    apiKey: key,
+                    system: RouterPrompt.instructions
+                )
             case .gemini:
                 guard let key = apiKey(.gemini), !key.isEmpty else { throw RouterError.noKey }
                 reply = try await GeminiVision.respond(
