@@ -19,6 +19,7 @@ struct ComputerUseAPI {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.timeoutInterval = 120
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
@@ -26,7 +27,7 @@ struct ComputerUseAPI {
 
         let body = RequestBody(
             model: model,
-            maxTokens: 1024,
+            maxTokens: 2048,
             tools: [
                 Tool(
                     type: toolVersion,
@@ -40,8 +41,20 @@ struct ComputerUseAPI {
         request.httpBody = try JSONEncoder().encode(body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw CUError.badResponse }
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard status == 200 else {
+            // Surface the API's own message so a 401/429/400 is diagnosable in the notch.
+            let message =
+                (try? JSONDecoder().decode(APIErrorBody.self, from: data))?.error.message
+                ?? String(data: data.prefix(200), encoding: .utf8) ?? ""
+            throw CUError.http(status, message)
+        }
         return try JSONDecoder().decode(ResponseBody.self, from: data).content
+    }
+
+    private struct APIErrorBody: Decodable {
+        struct Detail: Decodable { let message: String }
+        let error: Detail
     }
 
     private struct RequestBody: Encodable {
@@ -79,6 +92,14 @@ struct ComputerUseAPI {
 
 enum CUError: Error {
     case badResponse
+    case http(Int, String)
+
+    var userMessage: String {
+        switch self {
+        case .badResponse: "Couldn't reach the model."
+        case .http(let status, let message): "Model error (\(status)): \(message)"
+        }
+    }
 }
 
 /// One message in the computer-use conversation.
@@ -91,6 +112,8 @@ struct CUMessage: Codable {
 /// four are (de)coded by their `type` tag.
 enum CUBlock: Codable {
     case text(String)
+    /// A screenshot we attach (the opening look at the screen); never received.
+    case image(base64: String)
     case toolUse(id: String, input: CUInput)
     case toolResult(toolUseID: String, imageBase64: String?)
 
@@ -121,6 +144,9 @@ enum CUBlock: Codable {
         case .text(let text):
             try container.encode("text", forKey: .type)
             try container.encode(text, forKey: .text)
+        case .image(let base64):
+            try container.encode("image", forKey: .type)
+            try container.encode(ImageContent.Source(data: base64), forKey: .source)
         case .toolUse(let id, let input):
             try container.encode("tool_use", forKey: .type)
             try container.encode(id, forKey: .id)

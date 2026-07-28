@@ -11,6 +11,14 @@ struct VisionProviderTests {
         #expect(VisionProvider.gemini.requiresAPIKey)
     }
 
+    @Test("Only providers that can see the screen accept a screenshot")
+    func supportsImages() {
+        // On-device Foundation Models are text-only today, so capturing a screenshot
+        // for them is wasted work and a misleading "vision" toggle.
+        #expect(!VisionProvider.onDevice.supportsImages)
+        #expect(VisionProvider.gemini.supportsImages)
+    }
+
     @Test("The mode recommends a matching vision provider")
     func recommended() {
         #expect(VisionProvider.recommended(for: .onDevice) == .onDevice)

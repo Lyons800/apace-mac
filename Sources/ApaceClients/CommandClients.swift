@@ -55,6 +55,35 @@ public struct CommandClients: Sendable {
     }
 }
 
+/// Reads the user's command-mode preferences at the moment they're needed. A
+/// struct-of-closures over ``CommandPreference`` so the coordinator can be tested
+/// without touching `UserDefaults`.
+public struct CommandPreferencesReader: Sendable {
+    public var isEnabled: @Sendable () -> Bool
+    public var controlEnabled: @Sendable () -> Bool
+    public var usesVision: @Sendable () -> Bool
+    public var provider: @Sendable () -> VisionProvider
+
+    public init(
+        isEnabled: @escaping @Sendable () -> Bool,
+        controlEnabled: @escaping @Sendable () -> Bool,
+        usesVision: @escaping @Sendable () -> Bool,
+        provider: @escaping @Sendable () -> VisionProvider
+    ) {
+        self.isEnabled = isEnabled
+        self.controlEnabled = controlEnabled
+        self.usesVision = usesVision
+        self.provider = provider
+    }
+
+    public static let live = CommandPreferencesReader(
+        isEnabled: { CommandPreference.isEnabled },
+        controlEnabled: { CommandPreference.controlEnabled },
+        usesVision: { CommandPreference.usesVision },
+        provider: { CommandPreference.provider }
+    )
+}
+
 /// The user's command-mode preferences: whether it's on, whether it may look at the
 /// screen, and which provider answers.
 public enum CommandPreference {

@@ -29,10 +29,6 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
 
     private let keyCode = CGKeyCode(kVK_RightOption)
     private let modifier: CGEventFlags = .maskAlternate
-    /// A press shorter than this counts as a "tap" rather than a hold.
-    private let tapMax: TimeInterval = 0.25
-    /// The second tap must begin within this of the first tap's release.
-    private let gapMax: TimeInterval = 0.3
 
     private let lock = NSLock()
     private var dictation: AsyncStream<HotkeyIntent>.Continuation?
@@ -43,12 +39,8 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
     private var started = false
     private var isStopped = false
 
-    private enum Gesture { case none, dictation, command }
-    private var isPressed = false
-    private var current: Gesture = .none
-    private var downTime: TimeInterval = 0
-    private var lastUpTime: TimeInterval = -1
-    private var lastPressWasTap = false
+    /// The tap/hold/double-tap timing rules, kept pure so they're tested directly.
+    private var gesture = OptionGesture()
 
     func dictationIntents() -> AsyncStream<HotkeyIntent> {
         let (stream, continuation) = AsyncStream<HotkeyIntent>.makeStream()
@@ -140,25 +132,11 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
         // Decide which stream this transition belongs to, then yield outside the lock.
         let target: (continuation: AsyncStream<HotkeyIntent>.Continuation?, intent: HotkeyIntent)? =
             lock.withLock {
-                guard pressed != isPressed else { return nil }
-                isPressed = pressed
-
-                if pressed {
-                    let isDoubleTap =
-                        lastPressWasTap && lastUpTime >= 0 && (now - lastUpTime) < gapMax
-                    downTime = now
-                    current = isDoubleTap ? .command : .dictation
-                    return (isDoubleTap ? command : dictation, .startDictation)
-                } else {
-                    lastPressWasTap = (now - downTime) < tapMax
-                    lastUpTime = now
-                    let gesture = current
-                    current = .none
-                    switch gesture {
-                    case .command: return (command, .stopDictation)
-                    case .dictation: return (dictation, .stopDictation)
-                    case .none: return nil
-                    }
+                guard let output = pressed ? gesture.pressed(at: now) : gesture.released(at: now)
+                else { return nil }
+                switch output.route {
+                case .dictation: return (dictation, output.intent)
+                case .command: return (command, output.intent)
                 }
             }
 

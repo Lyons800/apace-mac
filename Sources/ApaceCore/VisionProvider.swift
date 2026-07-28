@@ -17,6 +17,11 @@ public enum VisionProvider: String, CaseIterable, Sendable, Codable {
 
     public var requiresAPIKey: Bool { self != .onDevice }
 
+    /// Whether this provider can accept a screenshot alongside the question. On-device
+    /// Foundation Models are text-only until Apple's image API ships, so capturing a
+    /// screenshot for them is wasted work.
+    public var supportsImages: Bool { self == .gemini }
+
     /// Keychain account for this provider's key.
     public var keyAccount: String { "vision.\(rawValue).apiKey" }
 
