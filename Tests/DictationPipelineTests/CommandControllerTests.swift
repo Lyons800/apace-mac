@@ -50,9 +50,12 @@ func makeCommandClients(
     recorder: CommandRecorder,
     samples: [Float] = speechSamples,
     transcribe: @escaping @Sendable ([Float]) async throws -> String = { _ in "open my calendar" },
-    answer: @escaping @Sendable (String, Data?) async throws -> String = { q, _ in "answer to \(q)" },
+    answer: @escaping @Sendable (String, Data?) async throws -> String = { q, _ in "answer to \(q)"
+    },
     route: @escaping @Sendable (String, FocusedField?, Data?) async throws -> CommandDecision = {
-        q, _, _ in .answer("answer to \(q)")
+        q,
+        _,
+        _ in .answer("answer to \(q)")
     },
     field: FocusedField? = nil,
     screenshot: Data? = Data([0x1]),
@@ -299,7 +302,8 @@ struct CommandControllerTests {
         #expect(recorder.automationGoals.isEmpty)
         await #expect(
             controller.currentActivity
-                == .answer("Turn on “Let it control my Mac” (Settings → Command) for that."))
+                == .answer("Turn on “Let it control my Mac” (Settings → Command) for that.")
+        )
     }
 
     @Test("A router failure falls back to the plain answer path")

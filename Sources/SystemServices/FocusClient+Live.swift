@@ -12,7 +12,10 @@ extension FocusClient {
         var focusedRef: CFTypeRef?
         guard
             AXUIElementCopyAttributeValue(
-                system, kAXFocusedUIElementAttribute as CFString, &focusedRef) == .success,
+                system,
+                kAXFocusedUIElementAttribute as CFString,
+                &focusedRef
+            ) == .success,
             let focusedRef, CFGetTypeID(focusedRef) == AXUIElementGetTypeID()
         else { return nil }
         let element = unsafeDowncast(focusedRef as AnyObject, to: AXUIElement.self)

@@ -22,7 +22,11 @@ private func makePNG(width: Int = 4, height: Int = 4) -> Data {
     let image = context.makeImage()!
     let data = NSMutableData()
     let destination = CGImageDestinationCreateWithData(
-        data, UTType.png.identifier as CFString, 1, nil)!
+        data,
+        UTType.png.identifier as CFString,
+        1,
+        nil
+    )!
     CGImageDestinationAddImage(destination, image, nil)
     CGImageDestinationFinalize(destination)
     return data as Data
@@ -79,7 +83,11 @@ private func label(for action: ControlAction) -> String {
 private final class LockedCounter: @unchecked Sendable {
     private let lock = NSLock()
     private var value = 0
-    func next() -> Int { lock.withLock { defer { value += 1 }; return value } }
+    func next() -> Int {
+        lock.withLock {
+            defer { value += 1 }; return value
+        }
+    }
 }
 
 private func makeHandler(_ recorder: LoopRecorder) -> AutomationHandler {
@@ -148,7 +156,8 @@ struct ComputerUseLoopTests {
                             coordinate: [50, 60],
                             scrollDirection: "down",
                             scrollAmount: 2
-                        ))
+                        )
+                    )
                 ],
                 [.text("Scrolled.")],
             ]

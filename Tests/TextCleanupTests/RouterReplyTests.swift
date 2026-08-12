@@ -9,10 +9,12 @@ struct RouterReplyTests {
     func bareJSON() {
         #expect(
             RouterReply.parse(#"{"action":"answer","text":"It's a linker error."}"#)
-                == .answer("It's a linker error."))
+                == .answer("It's a linker error.")
+        )
         #expect(
             RouterReply.parse(#"{"action":"insert","text":"até já","replace":true}"#)
-                == .insert(text: "até já", replacesDraft: true))
+                == .insert(text: "até já", replacesDraft: true)
+        )
         #expect(RouterReply.parse(#"{"action":"control"}"#) == .control)
     }
 
@@ -20,7 +22,8 @@ struct RouterReplyTests {
     func replaceDefaultsFalse() {
         #expect(
             RouterReply.parse(#"{"action":"insert","text":"olá"}"#)
-                == .insert(text: "olá", replacesDraft: false))
+                == .insert(text: "olá", replacesDraft: false)
+        )
     }
 
     @Test("Code fences and surrounding prose are tolerated")
@@ -40,7 +43,8 @@ struct RouterReplyTests {
     func bracesInStrings() {
         #expect(
             RouterReply.parse(#"{"action":"answer","text":"use { and } sparingly"}"#)
-                == .answer("use { and } sparingly"))
+                == .answer("use { and } sparingly")
+        )
     }
 
     @Test("Prose, unknown actions, and empty text are rejected, not misread")
