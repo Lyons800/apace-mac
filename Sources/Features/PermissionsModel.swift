@@ -8,6 +8,7 @@ import Observation
 @Observable
 public final class PermissionsModel {
     public private(set) var statuses: [Permission: PermissionStatus] = [:]
+    public private(set) var requestedPermissions: Set<Permission> = []
 
     private let client: PermissionsClient
 
@@ -25,6 +26,10 @@ public final class PermissionsModel {
         statuses[permission] ?? .notDetermined
     }
 
+    public func hasRequested(_ permission: Permission) -> Bool {
+        requestedPermissions.contains(permission)
+    }
+
     /// Re-reads every status. Cheap; call it when a window appears or regains focus,
     /// since the user may have changed a grant in System Settings.
     public func refresh() {
@@ -35,6 +40,7 @@ public final class PermissionsModel {
 
     /// Prompts for a permission and records the outcome.
     public func request(_ permission: Permission) async {
+        requestedPermissions.insert(permission)
         statuses[permission] = await client.request(permission)
     }
 

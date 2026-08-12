@@ -1,7 +1,7 @@
 import ApaceCore
 
 /// The port for checking and requesting the system permissions Apace needs. The live
-/// adapter wraps AVFoundation, Speech, Core Graphics event access, and Accessibility;
+/// adapter wraps AVFoundation, Speech, and Accessibility;
 /// onboarding drives it, and tests swap in canned statuses.
 public struct PermissionsClient: Sendable {
     /// The current grant state, cheap to call for polling the UI.

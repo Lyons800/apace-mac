@@ -24,6 +24,7 @@ struct PermissionsModelTests {
         let model = PermissionsModel(client: .stub(.notDetermined, onRequest: .granted))
         await model.request(.microphone)
         #expect(model.status(.microphone) == .granted)
+        #expect(model.hasRequested(.microphone))
     }
 }
 

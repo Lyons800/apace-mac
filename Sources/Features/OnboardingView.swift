@@ -24,6 +24,7 @@ public struct OnboardingView: View {
                     PermissionRow(
                         permission: permission,
                         status: permissions.status(permission),
+                        hasRequested: permissions.hasRequested(permission),
                         act: { act(on: permission) }
                     )
                 }
@@ -40,6 +41,12 @@ public struct OnboardingView: View {
         .padding(Theme.Spacing.loose)
         .frame(width: 420)
         .onAppear { permissions.refresh() }
+        .task {
+            while !Task.isCancelled, !permissions.allGranted {
+                try? await Task.sleep(for: .seconds(1))
+                permissions.refresh()
+            }
+        }
     }
 
     private var header: some View {
@@ -59,7 +66,11 @@ public struct OnboardingView: View {
     private func act(on permission: Permission) {
         switch permissions.status(permission) {
         case .notDetermined:
-            Task { await permissions.request(permission) }
+            if permissions.hasRequested(permission) {
+                permissions.openSettings(permission)
+            } else {
+                Task { await permissions.request(permission) }
+            }
         case .denied:
             permissions.openSettings(permission)
         case .granted:
@@ -73,6 +84,7 @@ public struct OnboardingView: View {
 private struct PermissionRow: View {
     let permission: Permission
     let status: PermissionStatus
+    let hasRequested: Bool
     let act: () -> Void
 
     var body: some View {
@@ -82,6 +94,14 @@ private struct PermissionRow: View {
                 Text(permission.rationale)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if permission == .accessibility, hasRequested, status != .granted {
+                    Text(
+                        "Already enabled? Turn Apace off and on again, or remove the old "
+                            + "entry and add this copy."
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                }
             }
             Spacer()
             control
@@ -98,7 +118,7 @@ private struct PermissionRow: View {
                 .font(.title2)
                 .foregroundStyle(.green)
         case .notDetermined:
-            Button("Grant", action: act)
+            Button(hasRequested ? "Open Settings" : "Grant", action: act)
         case .denied:
             Button("Open Settings", action: act)
         }
