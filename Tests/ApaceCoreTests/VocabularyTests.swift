@@ -1,40 +1,64 @@
+import Foundation
 import Testing
 
 @testable import ApaceCore
 
-@Suite("Vocabulary")
+@Suite("Recognition vocabulary")
 struct VocabularyTests {
-    private let vocab = Vocabulary(entries: [
-        VocabularyEntry(spoken: "github", written: "GitHub"),
-        VocabularyEntry(spoken: "oisin", written: "Oisín"),
-    ])
+    @Test("Produces canonical context and a Whisper decoder prompt")
+    func recognitionContext() {
+        let vocabulary = Vocabulary(entries: [
+            VocabularyEntry(term: "Oisin", pronunciation: "uh sheen, oh sheen"),
+            VocabularyEntry(term: "GitHub"),
+            VocabularyEntry(term: "   "),
+        ])
 
-    @Test("Corrects a whole word regardless of case")
-    func correctsCasing() {
-        #expect(vocab.apply(to: "i pushed to github today") == "i pushed to GitHub today")
-        #expect(vocab.apply(to: "Github is down") == "GitHub is down")
+        #expect(vocabulary.contextualStrings == ["Oisin", "GitHub"])
+        #expect(vocabulary.decoderPrompt == "Names and terms: Oisin, GitHub.")
+        #expect(
+            vocabulary.activeEntries[0].aliases
+                == ["uh sheen", "oh sheen"]
+        )
     }
 
-    @Test("Only replaces whole words, not substrings")
-    func wholeWordsOnly() {
-        #expect(vocab.apply(to: "githubbing all night") == "githubbing all night")
+    @Test("An empty vocabulary provides no decoder prompt")
+    func emptyContext() {
+        #expect(Vocabulary().contextualStrings.isEmpty)
+        #expect(Vocabulary().decoderPrompt == nil)
     }
 
-    @Test("Applies every entry across the text")
-    func appliesAllEntries() {
-        #expect(vocab.apply(to: "oisin uses github") == "Oisín uses GitHub")
+    @Test("Migrates the old replacement format without losing saved names")
+    func migratesLegacyEntries() throws {
+        let json = """
+            {
+              "entries": [
+                {"id":"00000000-0000-0000-0000-000000000001","spoken":"oisin","written":"Oisín"},
+                {"id":"00000000-0000-0000-0000-000000000002","spoken":"github","written":"GitHub"},
+                {"id":"00000000-0000-0000-0000-000000000003","spoken":"git hub","written":"GitHub"}
+              ]
+            }
+            """
+
+        let vocabulary = try JSONDecoder().decode(Vocabulary.self, from: Data(json.utf8))
+
+        #expect(vocabulary.entries[0].term == "Oisín")
+        #expect(vocabulary.entries[0].aliases == ["oisin"])
+        #expect(vocabulary.entries[1].term == "GitHub")
+        #expect(vocabulary.entries[1].aliases.isEmpty)
+        #expect(vocabulary.entries[2].aliases == ["git hub"])
     }
 
-    @Test("Handles multi-word spoken forms")
-    func multiWord() {
-        let v = Vocabulary(entries: [VocabularyEntry(spoken: "git hub", written: "GitHub")])
-        #expect(v.apply(to: "check git hub") == "check GitHub")
-    }
+    @Test("New entries encode using recognition fields only")
+    func encodesNewFormat() throws {
+        let data = try JSONEncoder().encode(
+            Vocabulary(entries: [VocabularyEntry(term: "Oisin", pronunciation: "uh sheen")])
+        )
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let entries = try #require(object["entries"] as? [[String: Any]])
 
-    @Test("Empty vocabulary and empty entries leave the text untouched")
-    func leavesTextUntouched() {
-        #expect(Vocabulary().apply(to: "nothing to change") == "nothing to change")
-        let v = Vocabulary(entries: [VocabularyEntry(spoken: "", written: "X")])
-        #expect(v.apply(to: "keep this") == "keep this")
+        #expect(entries[0]["term"] as? String == "Oisin")
+        #expect(entries[0]["pronunciation"] as? String == "uh sheen")
+        #expect(entries[0]["spoken"] == nil)
+        #expect(entries[0]["written"] == nil)
     }
 }

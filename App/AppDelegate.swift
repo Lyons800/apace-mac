@@ -15,7 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let command = CommandModel(clients: .live)
     let permissions = PermissionsModel(client: .live)
     let settings = SettingsStore(credentials: .live)
-    let vocabulary = VocabularyStore()
+    let vocabulary = VocabularyStore(learner: .live)
     let modelStatus = ModelStatus(isReady: !EnginePreference.engine.requiresModelDownload)
 
     /// Sparkle auto-updater — created only once a public key is configured, so a

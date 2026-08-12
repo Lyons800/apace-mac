@@ -1,9 +1,8 @@
 import ApaceCore
 import Foundation
 
-/// Reads and writes the user's custom vocabulary as JSON in `UserDefaults`. A tiny
-/// Sendable seam so the text processor can load the current vocabulary per dictation
-/// (from any thread) while the settings UI writes edits.
+/// Reads and writes the user's recognition vocabulary as JSON in `UserDefaults`.
+/// Speech engines load it fresh for each dictation while the settings UI writes edits.
 public enum VocabularyPreference {
     static let key = "apace.vocabulary"
 

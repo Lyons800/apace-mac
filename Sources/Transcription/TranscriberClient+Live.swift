@@ -7,8 +7,10 @@ extension TranscriberClient {
     /// Apple's on-device speech recogniser — the baseline engine. Recognition is
     /// pinned on-device so audio never leaves the machine, which is the whole point.
     public static let apple = TranscriberClient(
-        stream: { AppleSpeech.stream($0) },
-        transcribe: { try await AppleSpeech.transcribe($0) }
+        stream: { AppleSpeech.stream($0, vocabulary: VocabularyPreference.vocabulary) },
+        transcribe: {
+            try await AppleSpeech.transcribe($0, vocabulary: VocabularyPreference.vocabulary)
+        }
     )
 
     /// The engine the app uses by default. Selecting a different one (in settings)
@@ -27,10 +29,10 @@ enum TranscriptionError: Error {
 
 /// The mechanics of driving `SFSpeechRecognizer`, kept off the `TranscriberClient`
 /// value so the port stays a plain struct of closures.
-private enum AppleSpeech {
+enum AppleSpeech {
     /// One accurate, on-device pass over a finished recording. This result is what
     /// actually gets inserted.
-    static func transcribe(_ samples: [Float]) async throws -> String {
+    static func transcribe(_ samples: [Float], vocabulary: Vocabulary) async throws -> String {
         guard !samples.isEmpty else { return "" }
         try await requestAuthorization()
 
@@ -44,6 +46,7 @@ private enum AppleSpeech {
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.requiresOnDeviceRecognition = true
         request.shouldReportPartialResults = false
+        request.contextualStrings = vocabulary.contextualStrings
         request.append(buffer)
         request.endAudio()
 
@@ -68,7 +71,10 @@ private enum AppleSpeech {
 
     /// Volatile, on-device partials for the live preview. Best-effort: any failure
     /// just ends the preview and leaves the final pass to stand.
-    static func stream(_ audio: AsyncStream<AudioChunk>) -> AsyncThrowingStream<ASRUpdate, Error> {
+    static func stream(
+        _ audio: AsyncStream<AudioChunk>,
+        vocabulary: Vocabulary
+    ) -> AsyncThrowingStream<ASRUpdate, Error> {
         AsyncThrowingStream { continuation in
             let work = Task {
                 do {
@@ -80,6 +86,7 @@ private enum AppleSpeech {
                     let request = SFSpeechAudioBufferRecognitionRequest()
                     request.requiresOnDeviceRecognition = true
                     request.shouldReportPartialResults = true
+                    request.contextualStrings = vocabulary.contextualStrings
 
                     try await withCheckedThrowingContinuation {
                         (finished: CheckedContinuation<Void, Error>) in

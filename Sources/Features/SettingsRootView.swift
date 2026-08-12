@@ -63,7 +63,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .transcription: "Transcription"
         case .cleanup: "Cleanup"
         case .command: "Command mode"
-        case .dictionary: "Dictionary"
+        case .dictionary: "Names & Terms"
         case .about: "About"
         }
     }
@@ -74,7 +74,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .transcription: "waveform"
         case .cleanup: "sparkles"
         case .command: "command"
-        case .dictionary: "character.book.closed"
+        case .dictionary: "person.wave.2"
         case .about: "info.circle"
         }
     }

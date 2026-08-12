@@ -1,3 +1,5 @@
+import ApaceClients
+import ApaceCore
 import Foundation
 @preconcurrency import WhisperKit
 
@@ -20,8 +22,17 @@ actor WhisperKitEngine {
     }
 
     func transcribe(_ samples: [Float]) async throws -> String {
+        try await transcribe(samples, vocabulary: VocabularyPreference.vocabulary)
+    }
+
+    func transcribe(_ samples: [Float], vocabulary: Vocabulary) async throws -> String {
         let kit = try await ready()
-        let options = DecodingOptions(language: "en", temperature: 0.0)
+        var options = DecodingOptions(language: "en", temperature: 0.0)
+        if let prompt = vocabulary.decoderPrompt, let tokenizer = kit.tokenizer {
+            options.promptTokens = tokenizer.encode(text: " " + prompt)
+                .filter { $0 < tokenizer.specialTokens.specialTokenBegin }
+            options.usePrefillPrompt = true
+        }
         let results = try await kit.transcribe(audioArray: samples, decodeOptions: options)
         return results.map(\.text).joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)

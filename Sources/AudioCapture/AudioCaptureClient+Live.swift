@@ -11,14 +11,18 @@ extension AudioCaptureClient {
     ///
     /// One recorder instance backs both closures so `start` and `stop` act on the same
     /// engine and buffer.
-    public static let live: AudioCaptureClient = {
+    public static let live = microphone()
+
+    /// Creates an independent recorder. Pronunciation learning uses its own instance so
+    /// opening Settings can never steal or stop the recorder used by normal dictation.
+    public static func microphone() -> AudioCaptureClient {
         let recorder = MicrophoneRecorder()
         return AudioCaptureClient(
             start: { try recorder.start() },
             samples: { recorder.currentSamples() },
             stop: { recorder.stop() }
         )
-    }()
+    }
 }
 
 /// Errors the live adapter can raise on `start`; surfaced to the user as a recoverable

@@ -15,6 +15,27 @@ extension TranscriberClient {
         }
     }
 
+    /// The selected recogniser with an empty context. Pronunciation learning uses this
+    /// once to discover the spelling the engine naturally assigns to a spoken name.
+    public static func makeUnbiased(for engine: TranscriptionEngine) -> TranscriberClient {
+        let empty = Vocabulary()
+        switch engine {
+        case .apple:
+            return TranscriberClient(
+                stream: { AppleSpeech.stream($0, vocabulary: empty) },
+                transcribe: { try await AppleSpeech.transcribe($0, vocabulary: empty) }
+            )
+        case .parakeet:
+            return parakeet(.v3, vocabulary: empty)
+        case .parakeetEnglish:
+            return parakeet(.v2, vocabulary: empty)
+        case .whisper:
+            return whisper(.turbo, vocabulary: empty)
+        case .whisperMax:
+            return whisper(.largeV3, vocabulary: empty)
+        }
+    }
+
     /// Warms up an engine's model in the background so the first dictation is instant.
     public static func preload(_ engine: TranscriptionEngine) {
         switch engine {
@@ -45,10 +66,30 @@ extension TranscriberClient {
         )
     }
 
+    private static func parakeet(
+        _ engine: ParakeetEngine,
+        vocabulary: Vocabulary
+    ) -> TranscriberClient {
+        TranscriberClient(
+            stream: { _ in AsyncThrowingStream { $0.finish() } },
+            transcribe: { try await engine.transcribe($0, vocabulary: vocabulary) }
+        )
+    }
+
     static func whisper(_ engine: WhisperKitEngine) -> TranscriberClient {
         TranscriberClient(
             stream: { _ in AsyncThrowingStream { $0.finish() } },
             transcribe: { try await engine.transcribe($0) }
+        )
+    }
+
+    private static func whisper(
+        _ engine: WhisperKitEngine,
+        vocabulary: Vocabulary
+    ) -> TranscriberClient {
+        TranscriberClient(
+            stream: { _ in AsyncThrowingStream { $0.finish() } },
+            transcribe: { try await engine.transcribe($0, vocabulary: vocabulary) }
         )
     }
 }

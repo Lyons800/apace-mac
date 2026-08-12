@@ -97,6 +97,13 @@ let package = Package(
         ),
         .testTarget(name: "TextCleanupTests", dependencies: ["TextCleanup", "ApaceCore"]),
         .testTarget(
+            name: "TranscriptionTests",
+            dependencies: [
+                "Transcription", "ApaceClients", "ApaceCore",
+                .product(name: "FluidAudio", package: "FluidAudio"),
+            ]
+        ),
+        .testTarget(
             name: "AutomationTests",
             dependencies: ["Automation", "ApaceClients", "ApaceCore"]
         ),

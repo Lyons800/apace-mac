@@ -180,21 +180,19 @@ struct CommandPane: View {
     }
 }
 
-// MARK: - Dictionary
+// MARK: - Names & Terms
 
 struct DictionaryPane: View {
     @Bindable var vocabulary: VocabularyStore
 
     var body: some View {
         Form {
-            Section("Custom words") {
+            Section("Teach Apace") {
                 ForEach($vocabulary.entries) { $entry in
-                    HStack(spacing: 8) {
-                        TextField("Heard", text: $entry.spoken)
-                        Image(systemName: "arrow.right")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                        TextField("Written", text: $entry.written)
+                    HStack(alignment: .center, spacing: 8) {
+                        TextField("Name or term", text: $entry.term)
+                        TextField("What Apace hears (optional)", text: $entry.pronunciation)
+                        learningButton(for: entry)
                         Button {
                             vocabulary.remove(entry)
                         } label: {
@@ -205,14 +203,48 @@ struct DictionaryPane: View {
                     }
                 }
 
-                Button("Add word", action: vocabulary.add)
+                Button("Add name or term", action: vocabulary.add)
 
-                Text("Fix names and jargon the recogniser gets wrong. Applied on-device.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    "Apace gives these spellings to the recogniser before it listens. "
+                        + "For a name like Oisin, click the microphone, say only the name, "
+                        + "then click Stop. Apace learns the recogniser’s pronunciation without "
+                        + "creating a global find-and-replace rule."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                if let message = vocabulary.learningMessage {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .formStyle(.grouped)
+    }
+
+    @ViewBuilder
+    private func learningButton(for entry: VocabularyEntry) -> some View {
+        if vocabulary.processingEntryID == entry.id {
+            ProgressView()
+                .controlSize(.small)
+                .frame(width: 24)
+        } else {
+            let isRecording = vocabulary.recordingEntryID == entry.id
+            Button {
+                vocabulary.toggleLearning(entry)
+            } label: {
+                Image(systemName: isRecording ? "stop.circle.fill" : "mic.circle")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(isRecording ? .red : .secondary)
+            .disabled(
+                entry.term.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    || vocabulary.processingEntryID != nil
+            )
+            .help(isRecording ? "Stop and learn" : "Learn pronunciation")
+        }
     }
 }
 

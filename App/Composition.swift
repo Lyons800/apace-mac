@@ -58,22 +58,21 @@ extension CommandClients {
 
 extension TextProcessorClient {
     /// Cleans up the transcript before it's inserted, reading both preferences fresh on
-    /// every dictation so changes take effect immediately: optional AI cleanup first
-    /// (on-device, falling back to the user's API key) when enabled, then the user's
-    /// custom vocabulary, which gets the final say on exact spellings.
+    /// every dictation so changes take effect immediately. Recognition vocabulary is
+    /// handled upstream by the speech engine; this stage only tidies the resulting text.
     static let live = TextProcessorClient(
         process: { text in
-            // The full pass: instant tidy, then optional AI cleanup, then vocabulary.
+            // The full pass: instant tidy, then optional AI cleanup.
             var result = FastTidy.apply(text)
             if CleanupPreference.isEnabled {
                 result = await cleanup.process(result)
             }
-            return VocabularyPreference.vocabulary.apply(to: result)
+            return result
         },
         quick: { text in
-            // The instant pass inserted immediately — deterministic tidy + vocabulary, no
-            // model. When AI cleanup is on, the coordinator refines this in the background.
-            VocabularyPreference.vocabulary.apply(to: FastTidy.apply(text))
+            // The instant pass inserted immediately. When AI cleanup is on, the
+            // coordinator refines this in the background.
+            FastTidy.apply(text)
         }
     )
 
@@ -90,4 +89,21 @@ extension TranscriberClient {
         stream: { make(for: EnginePreference.engine).stream($0) },
         transcribe: { try await make(for: EnginePreference.engine).transcribe($0) }
     )
+}
+
+extension PronunciationLearningClient {
+    /// A dedicated microphone plus an unbiased pass through the selected recogniser.
+    /// The returned hypothesis becomes recognition context, never a global text rule.
+    static let live: PronunciationLearningClient = {
+        let audio = AudioCaptureClient.microphone()
+        return PronunciationLearningClient(
+            start: { _ = try audio.start() },
+            finish: {
+                let samples = audio.stop()
+                return try await TranscriberClient.makeUnbiased(for: EnginePreference.engine)
+                    .transcribe(samples)
+            },
+            cancel: { _ = audio.stop() }
+        )
+    }()
 }
