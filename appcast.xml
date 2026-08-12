@@ -1,0 +1,15 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Apace</title>
+        <item>
+            <title>0.1.2</title>
+            <pubDate>Wed, 12 Aug 2026 19:33:54 +0000</pubDate>
+            <sparkle:version>3</sparkle:version>
+            <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://github.com/Lyons800/apace-mac/releases/download/v0.1.2/Apace.dmg" length="16316028" type="application/octet-stream" sparkle:edSignature="hiowudHHCW6ipKD6wMnx8SbFNMt8F4NNyxWpyQmswsCW0BF6mCvw4WG9K+S5w+dvtRriPAro45dagaYQrNKYBg=="/>
+        </item>
+    </channel>
+</rss>

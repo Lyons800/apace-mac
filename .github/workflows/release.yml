@@ -13,7 +13,7 @@ jobs:
   release:
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -57,3 +57,22 @@ jobs:
             dist/Apace.dmg dist/appcast.xml \
             --title "Apace ${{ github.ref_name }}" \
             --generate-notes
+
+      - name: Publish stable update feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          CONTENT="$(base64 < dist/appcast.xml | tr -d '\n')"
+          SHA="$(gh api "repos/${GITHUB_REPOSITORY}/contents/appcast.xml?ref=main" --jq .sha 2>/dev/null || true)"
+          if [ -n "$SHA" ]; then
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/appcast.xml" \
+              -f message="release: publish ${{ github.ref_name }} update feed" \
+              -f content="$CONTENT" \
+              -f branch=main \
+              -f sha="$SHA"
+          else
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/appcast.xml" \
+              -f message="release: publish ${{ github.ref_name }} update feed" \
+              -f content="$CONTENT" \
+              -f branch=main
+          fi

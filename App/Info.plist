@@ -29,7 +29,7 @@
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Apace uses on-device speech recognition to turn your speech into text. Nothing is sent to a server.</string>
 	<key>SUFeedURL</key>
-	<string>https://github.com/Lyons800/apace-mac/releases/latest/download/appcast.xml</string>
+	<string>https://raw.githubusercontent.com/Lyons800/apace-mac/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>$(SPARKLE_PUBLIC_ED_KEY)</string>
 	<key>SUEnableAutomaticChecks</key>

@@ -57,9 +57,10 @@ git push origin v0.1.0
 ```
 
 `.github/workflows/release.yml` then builds, signs, notarizes, staples, signs the update,
-builds the appcast, and publishes a GitHub Release with `Apace.dmg` + `appcast.xml`.
-`SUFeedURL` already points at `releases/latest/download/appcast.xml`, so shipped apps see
-the update automatically.
+builds the appcast, and publishes a GitHub Release with `Apace.dmg` + `appcast.xml`. After
+the release exists, the workflow also publishes the signed appcast to `appcast.xml` on
+`main`. `SUFeedURL` points directly at that stable raw file, so checking for updates does
+not depend on GitHub's redirect-based release-asset endpoint.
 
 ## Secrets
 
