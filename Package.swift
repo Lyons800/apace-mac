@@ -22,7 +22,9 @@ let package = Package(
         .library(name: "Features", targets: ["Features"]),
         .library(
             name: "Adapters",
-            targets: ["AudioCapture", "Transcription", "SystemServices", "TextCleanup", "Automation"]
+            targets: [
+                "AudioCapture", "Transcription", "SystemServices", "TextCleanup", "Automation",
+            ]
         ),
         .library(name: "ApaceKit", targets: ["ApaceCore", "ApaceClients", "DictationPipeline"]),
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
@@ -30,13 +32,15 @@ let package = Package(
     dependencies: [
         // On-device ASR engines. Pinned to the versions the previous app shipped so
         // the integration is against a known-good API surface.
-        // WhisperKit 1.0 vendors its tokenizer and uses swift-transformers 1.2, which
-        // co-resolves with the MLX cleanup model below (0.14.1 pinned an older one).
+        // WhisperKit vendors its tokenizer and co-resolves its transformer dependencies
+        // with the MLX cleanup model below.
         .package(url: "https://github.com/argmaxinc/WhisperKit", exact: "1.1.0"),
         .package(url: "https://github.com/FluidInference/FluidAudio", exact: "0.15.5"),
         // On-device cleanup LLM for Macs without Apple Intelligence (a small local model
-        // via MLX). 2.31.3 has the fixed manifest and pairs with WhisperKit 1.0.
-        .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "2.31.3"),
+        // via MLX).
+        .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "3.31.4"),
+        .package(url: "https://github.com/huggingface/swift-huggingface", from: "0.9.0"),
+        .package(url: "https://github.com/huggingface/swift-transformers", from: "1.3.0"),
     ],
     targets: [
         // MARK: Domain
@@ -64,6 +68,9 @@ let package = Package(
                 "ApaceClients",
                 .product(name: "MLXLLM", package: "mlx-swift-lm"),
                 .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
+                .product(name: "MLXHuggingFace", package: "mlx-swift-lm"),
+                .product(name: "HuggingFace", package: "swift-huggingface"),
+                .product(name: "Tokenizers", package: "swift-transformers"),
             ]
         ),
 
@@ -90,6 +97,9 @@ let package = Package(
             dependencies: ["Features", "ApaceCore", "ApaceClients"]
         ),
         .testTarget(name: "TextCleanupTests", dependencies: ["TextCleanup", "ApaceCore"]),
-        .testTarget(name: "AutomationTests", dependencies: ["Automation", "ApaceClients", "ApaceCore"]),
+        .testTarget(
+            name: "AutomationTests",
+            dependencies: ["Automation", "ApaceClients", "ApaceCore"]
+        ),
     ]
 )
