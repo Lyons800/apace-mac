@@ -20,6 +20,8 @@ private enum Permissions {
             map(AVCaptureDevice.authorizationStatus(for: .audio))
         case .speechRecognition:
             map(SFSpeechRecognizer.authorizationStatus())
+        case .inputMonitoring:
+            CGPreflightListenEventAccess() ? .granted : .notDetermined
         case .accessibility:
             AXIsProcessTrusted() ? .granted : .notDetermined
         }
@@ -33,6 +35,8 @@ private enum Permissions {
             _ = await withCheckedContinuation { continuation in
                 SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
             }
+        case .inputMonitoring:
+            _ = CGRequestListenEventAccess()
         case .accessibility:
             // There's no in-app grant; prompting opens the system dialog that sends
             // the user to Settings. We report back whatever the state is afterwards.
@@ -46,6 +50,7 @@ private enum Permissions {
         switch permission {
         case .microphone: anchor = "Privacy_Microphone"
         case .speechRecognition: anchor = "Privacy_SpeechRecognition"
+        case .inputMonitoring: anchor = "Privacy_ListenEvent"
         case .accessibility: anchor = "Privacy_Accessibility"
         }
         guard

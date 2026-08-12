@@ -46,10 +46,13 @@ public struct OnboardingView: View {
         VStack(spacing: Theme.Spacing.tight) {
             Text("Welcome to Apace")
                 .font(.largeTitle.bold())
-            Text("Dictate anywhere on your Mac. Grant a few permissions to get started.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            Text(
+                "Grant the permissions below, then hold Right Option to dictate and "
+                    + "release to insert your text."
+            )
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
         }
     }
 

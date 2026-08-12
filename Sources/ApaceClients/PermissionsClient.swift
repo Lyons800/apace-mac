@@ -1,13 +1,13 @@
 import ApaceCore
 
 /// The port for checking and requesting the system permissions Apace needs. The live
-/// adapter wraps AVFoundation, Speech, and the Accessibility API; onboarding drives
-/// it, and tests swap in canned statuses.
+/// adapter wraps AVFoundation, Speech, Core Graphics event access, and Accessibility;
+/// onboarding drives it, and tests swap in canned statuses.
 public struct PermissionsClient: Sendable {
     /// The current grant state, cheap to call for polling the UI.
     public var status: @Sendable (Permission) -> PermissionStatus
-    /// Prompts for a permission and returns the resulting state. Accessibility can't
-    /// be granted in-app, so its request opens the prompt and reports back.
+    /// Prompts for a permission and returns the resulting state. Some macOS privacy
+    /// grants require confirmation in System Settings, so the UI keeps polling.
     public var request: @Sendable (Permission) async -> PermissionStatus
     /// Opens the relevant System Settings pane, for a permission the user has to
     /// change there.

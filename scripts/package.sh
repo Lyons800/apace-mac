@@ -13,6 +13,7 @@ TEAM="${DEVELOPMENT_TEAM:-BWD692VD35}"
 IDENTITY="${CODE_SIGN_IDENTITY:-Developer ID Application}"
 DERIVED="build/xcode-derived"  # fixed so re-runs reuse the compiled dependencies
 DIST="dist"
+DMG_ROOT="$DERIVED/dmg-root"
 
 echo "==> Generating project"
 xcodegen generate
@@ -55,7 +56,14 @@ echo "==> Assembling DMG"
 rm -rf "$DIST"
 mkdir -p "$DIST"
 cp -R "$APP" "$DIST/"
-hdiutil create -volname "Apace" -srcfolder "$DIST/Apace.app" \
+
+# A mounted Mac installer should make the next action self-evident. Put the app beside
+# an Applications alias so Finder presents the standard drag-to-install experience.
+rm -rf "$DMG_ROOT"
+mkdir -p "$DMG_ROOT"
+cp -R "$APP" "$DMG_ROOT/"
+ln -s /Applications "$DMG_ROOT/Applications"
+hdiutil create -volname "Apace" -srcfolder "$DMG_ROOT" \
   -ov -format UDZO "$DIST/Apace.dmg"
 
 echo "==> Done: $DIST/Apace.dmg"
