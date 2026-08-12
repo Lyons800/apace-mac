@@ -15,7 +15,9 @@ extension CommandRouterClient {
             switch CommandPreference.provider {
             case .onDevice:
                 reply = try await AppleAssistant.raw(
-                    instructions: RouterPrompt.instructions, prompt: prompt)
+                    instructions: RouterPrompt.instructions,
+                    prompt: prompt
+                )
             case .anthropic:
                 guard let key = apiKey(.anthropic), !key.isEmpty else { throw RouterError.noKey }
                 reply = try await AnthropicVision.respond(

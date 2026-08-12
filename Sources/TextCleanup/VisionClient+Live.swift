@@ -17,7 +17,10 @@ extension VisionClient {
                     return "Add an Anthropic API key (Settings → Cleanup) to answer commands."
                 }
                 return try await AnthropicVision.respond(
-                    question: question, image: image, apiKey: key)
+                    question: question,
+                    image: image,
+                    apiKey: key
+                )
             case .gemini:
                 guard let key = apiKey(.gemini), !key.isEmpty else {
                     return

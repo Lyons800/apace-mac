@@ -60,9 +60,10 @@ public struct CommandRouterClient: Sendable {
             CommandDecision
 
     public init(
-        route: @escaping @Sendable (
-            _ request: String, _ field: FocusedField?, _ image: Data?
-        ) async throws -> CommandDecision
+        route:
+            @escaping @Sendable (
+                _ request: String, _ field: FocusedField?, _ image: Data?
+            ) async throws -> CommandDecision
     ) {
         self.route = route
     }

@@ -9,7 +9,8 @@ import os
 /// cap is hit. Outward/risky goals are confirmed once before anything happens.
 struct ComputerUseAgent {
     /// How the model's replies are fetched, injectable so the loop is testable offline.
-    typealias Transport = @Sendable (_ messages: [CUMessage], _ width: Int, _ height: Int)
+    typealias Transport =
+        @Sendable (_ messages: [CUMessage], _ width: Int, _ height: Int)
         async throws -> [CUBlock]
 
     let screen: ScreenCaptureClient
@@ -66,7 +67,9 @@ struct ComputerUseAgent {
                 handler.onStep(.done("Cancelled."))
                 return
             } catch let error as CUError {
-                Self.log.error("computer-use request failed: \(error.userMessage, privacy: .public)")
+                Self.log.error(
+                    "computer-use request failed: \(error.userMessage, privacy: .public)"
+                )
                 handler.onStep(.failed(error.userMessage))
                 return
             } catch {

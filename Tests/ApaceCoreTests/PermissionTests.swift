@@ -16,6 +16,7 @@ struct PermissionTests {
     func coversTheStack() {
         #expect(Permission.allCases.contains(.microphone))
         #expect(Permission.allCases.contains(.speechRecognition))
+        #expect(Permission.allCases.contains(.inputMonitoring))
         #expect(Permission.allCases.contains(.accessibility))
     }
 }
