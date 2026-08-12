@@ -15,8 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
+      - name: Install release tooling
+        run: brew install xcodegen create-dmg
 
       - name: Import Developer ID certificate
         env:

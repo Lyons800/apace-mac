@@ -4,6 +4,9 @@ Apace ships as a Developer ID-signed, notarized DMG with Sparkle auto-updates. T
 two ways to cut a release: **manual** (one-time, on your Mac) and **CI** (push a tag).
 Publishing is always deliberate.
 
+The release environment also needs `xcodegen` and `create-dmg`. The latter writes the
+branded Finder window and drag-to-Applications layout into the disk image.
+
 ## One-time setup
 
 ### 1. Sparkle key pair

@@ -43,6 +43,7 @@ targets:
         # Sparkle EdDSA public key for verifying updates. Generate with Sparkle's
         # `generate_keys`; paste the public key here (the private key stays out of git).
         SPARKLE_PUBLIC_ED_KEY: "zOO/VOlBiXDHXRsNb9W3LcMRFq3ZO8UCcZEoWbGLzFg="
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: App/Info.plist
         CODE_SIGN_ENTITLEMENTS: App/Apace.entitlements

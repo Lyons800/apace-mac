@@ -14,6 +14,7 @@ IDENTITY="${CODE_SIGN_IDENTITY:-Developer ID Application}"
 DERIVED="build/xcode-derived"  # fixed so re-runs reuse the compiled dependencies
 DIST="dist"
 DMG_ROOT="$DERIVED/dmg-root"
+DMG_BACKGROUND="$DERIVED/dmg-background.png"
 
 echo "==> Generating project"
 xcodegen generate
@@ -57,13 +58,31 @@ rm -rf "$DIST"
 mkdir -p "$DIST"
 cp -R "$APP" "$DIST/"
 
-# A mounted Mac installer should make the next action self-evident. Put the app beside
-# an Applications alias so Finder presents the standard drag-to-install experience.
+# Build the familiar polished Mac installer window: large app and Applications icons,
+# fixed positions, a branded background, and an explicit drag direction. create-dmg
+# writes Finder's layout metadata into the image so it opens this way for every user.
+command -v create-dmg >/dev/null 2>&1 \
+  || { echo "error: create-dmg is required (brew install create-dmg)"; exit 1; }
+
 rm -rf "$DMG_ROOT"
 mkdir -p "$DMG_ROOT"
 cp -R "$APP" "$DMG_ROOT/"
-ln -s /Applications "$DMG_ROOT/Applications"
-hdiutil create -volname "Apace" -srcfolder "$DMG_ROOT" \
-  -ov -format UDZO "$DIST/Apace.dmg"
+
+sips -s format png assets/dmg-background.svg --out "$DMG_BACKGROUND" >/dev/null
+create-dmg \
+  --volname "Apace" \
+  --background "$DMG_BACKGROUND" \
+  --window-pos 200 120 \
+  --window-size 660 420 \
+  --text-size 13 \
+  --icon-size 112 \
+  --icon "Apace.app" 170 235 \
+  --hide-extension "Apace.app" \
+  --app-drop-link 490 235 \
+  --no-internet-enable \
+  --filesystem APFS \
+  --overwrite \
+  "$DIST/Apace.dmg" \
+  "$DMG_ROOT"
 
 echo "==> Done: $DIST/Apace.dmg"

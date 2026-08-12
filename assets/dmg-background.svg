@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="420" viewBox="0 0 660 420">
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffdfb"/>
+      <stop offset="1" stop-color="#f5f1ec"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="0" r="74%">
+      <stop offset="0" stop-color="#ff7a29" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#ff7a29" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="signal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff9a55"/>
+      <stop offset="1" stop-color="#ff641e"/>
+    </linearGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#8f3a0b" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <rect width="660" height="420" fill="url(#canvas)"/>
+  <rect width="660" height="420" fill="url(#glow)"/>
+
+  <g fill="url(#signal)" filter="url(#softShadow)" transform="translate(289 34)">
+    <rect x="0" y="16" width="6" height="14" rx="3"/>
+    <rect x="12" y="10" width="6" height="26" rx="3"/>
+    <rect x="24" y="4" width="6" height="38" rx="3"/>
+    <rect x="36" y="0" width="6" height="46" rx="3"/>
+    <rect x="48" y="7" width="6" height="32" rx="3"/>
+    <rect x="60" y="12" width="6" height="22" rx="3"/>
+    <rect x="72" y="17" width="6" height="12" rx="3"/>
+  </g>
+
+  <text x="330" y="111" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif" font-size="30" font-weight="700" fill="#191715">Apace</text>
+  <text x="330" y="137" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#77716b">Type at the speed of thought.</text>
+
+  <g stroke="url(#signal)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#softShadow)">
+    <path d="M270 237 H380"/>
+    <path d="M365 222 L380 237 L365 252"/>
+  </g>
+
+  <text x="330" y="348" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#292522">Drag Apace to Applications</text>
+  <text x="330" y="374" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#8a837c">Then open Apace from your Applications folder.</text>
+</svg>

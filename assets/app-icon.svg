@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2b211b"/>
+      <stop offset="0.48" stop-color="#171310"/>
+      <stop offset="1" stop-color="#080706"/>
+    </linearGradient>
+    <radialGradient id="warmth" cx="26%" cy="18%" r="88%">
+      <stop offset="0" stop-color="#ff8a42" stop-opacity="0.34"/>
+      <stop offset="0.52" stop-color="#ff6f27" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#ff6f27" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="signal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffad72"/>
+      <stop offset="0.5" stop-color="#ff7a29"/>
+      <stop offset="1" stop-color="#ff5318"/>
+    </linearGradient>
+    <filter id="tileShadow" x="-25%" y="-25%" width="150%" height="165%">
+      <feDropShadow dx="0" dy="28" stdDeviation="28" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <filter id="signalGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#ff5e1f" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#tileShadow)">
+    <rect x="64" y="52" width="896" height="896" rx="215" fill="url(#tile)"/>
+    <rect x="64" y="52" width="896" height="896" rx="215" fill="url(#warmth)"/>
+    <rect x="76" y="64" width="872" height="872" rx="205" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="4"/>
+  </g>
+
+  <g fill="url(#signal)" filter="url(#signalGlow)" transform="translate(241 275)">
+    <rect x="0" y="177" width="44" height="118" rx="22"/>
+    <rect x="71" y="120" width="44" height="232" rx="22"/>
+    <rect x="142" y="59" width="44" height="354" rx="22"/>
+    <rect x="213" y="0" width="44" height="472" rx="22"/>
+    <rect x="284" y="51" width="44" height="370" rx="22"/>
+    <rect x="355" y="112" width="44" height="248" rx="22"/>
+    <rect x="426" y="168" width="44" height="136" rx="22"/>
+    <rect x="497" y="202" width="44" height="68" rx="22"/>
+  </g>
+</svg>
