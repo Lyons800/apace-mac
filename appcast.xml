@@ -3,13 +3,13 @@
     <channel>
         <title>Apace</title>
         <item>
-            <title>0.1.2</title>
-            <pubDate>Wed, 12 Aug 2026 19:33:54 +0000</pubDate>
-            <sparkle:version>3</sparkle:version>
-            <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
+            <title>0.1.3</title>
+            <pubDate>Wed, 12 Aug 2026 20:25:21 +0000</pubDate>
+            <sparkle:version>4</sparkle:version>
+            <sparkle:shortVersionString>0.1.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/Lyons800/apace-mac/releases/download/v0.1.2/Apace.dmg" length="16316028" type="application/octet-stream" sparkle:edSignature="hiowudHHCW6ipKD6wMnx8SbFNMt8F4NNyxWpyQmswsCW0BF6mCvw4WG9K+S5w+dvtRriPAro45dagaYQrNKYBg=="/>
+            <enclosure url="https://github.com/Lyons800/apace-mac/releases/download/v0.1.3/Apace.dmg" length="16316391" type="application/octet-stream" sparkle:edSignature="3I2lp9Z6zfmDjgdkSysDgFMuRGT0tWur3m5ghHsbxvmnP6aZxsxGFS1IwZfApP/7hoZodNNbEXPdakRNrxCHCw=="/>
         </item>
     </channel>
 </rss>
