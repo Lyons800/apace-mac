@@ -18,9 +18,11 @@ REPO="Lyons800/apace-mac"
 [ -f dist/Apace.dmg ] || { echo "error: dist/Apace.dmg not found — run scripts/package.sh first"; exit 1; }
 
 echo "==> Fetching Sparkle tools"
-TOOLS_URL="$(curl -fsSL https://api.github.com/repos/sparkle-project/Sparkle/releases/latest \
-  | grep browser_download_url | grep '\.tar\.xz' | cut -d'"' -f4 | head -1)"
-curl -fsSL -o sparkle.tar.xz "$TOOLS_URL"
+# Keep the release tooling aligned with the framework version resolved by the app.
+# A pinned asset is reproducible and avoids GitHub's unauthenticated API rate limit.
+SPARKLE_TOOLS_VERSION="${SPARKLE_TOOLS_VERSION:-2.9.4}"
+TOOLS_URL="https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_TOOLS_VERSION}/Sparkle-${SPARKLE_TOOLS_VERSION}.tar.xz"
+curl --retry 5 --retry-all-errors -fsSL -o sparkle.tar.xz "$TOOLS_URL"
 mkdir -p sparkle-tools && tar -xJf sparkle.tar.xz -C sparkle-tools
 rm sparkle.tar.xz
 GENERATE_APPCAST="$(find sparkle-tools -name generate_appcast -type f | head -1)"
