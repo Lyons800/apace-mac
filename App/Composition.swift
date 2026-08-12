@@ -28,6 +28,10 @@ extension CommandClients {
         transcriber: .selected,
         screen: .live,
         vision: .live(apiKey: { provider in CredentialStore.live.load(provider.keyAccount) }),
+        router: .live(apiKey: { provider in CredentialStore.live.load(provider.keyAccount) }),
+        focus: .live,
+        inserter: .live,
+        control: .live,
         automation: .live(
             screen: .live,
             control: .live,

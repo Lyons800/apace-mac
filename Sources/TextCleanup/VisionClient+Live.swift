@@ -12,6 +12,15 @@ extension VisionClient {
             switch CommandPreference.provider {
             case .onDevice:
                 return await AppleAssistant.answer(question)
+            case .anthropic:
+                guard let key = apiKey(.anthropic), !key.isEmpty else {
+                    return "Add an Anthropic API key (Settings → Cleanup) to answer commands."
+                }
+                return try await AnthropicVision.respond(
+                    question: question,
+                    image: image,
+                    apiKey: key
+                )
             case .gemini:
                 guard let key = apiKey(.gemini), !key.isEmpty else {
                     return
@@ -25,6 +34,17 @@ extension VisionClient {
 
 /// A concise on-device answer via Apple Intelligence (macOS 26+).
 enum AppleAssistant {
+    /// A raw single-turn reply with caller-supplied instructions. Unlike ``answer``,
+    /// unavailability throws instead of returning a friendly string, so the router can
+    /// fall back to the plain answer path (which explains what's missing).
+    static func raw(instructions: String, prompt: String) async throws -> String {
+        guard #available(macOS 26.0, *), SystemLanguageModel.default.isAvailable else {
+            throw RouterError.unavailable
+        }
+        return try await LanguageModelSession(instructions: instructions)
+            .respond(to: prompt).content
+    }
+
     static func answer(_ question: String) async -> String {
         guard #available(macOS 26.0, *) else {
             return "On-device answers need Apple Intelligence (macOS 26)."

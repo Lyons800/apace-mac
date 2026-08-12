@@ -24,7 +24,9 @@ lets you *act* on your voice, not just type.
 
 ## Install
 
-Download the latest signed & notarized DMG from [Releases](../../releases). *(Coming with the first release.)*
+1. Download the latest signed and notarized DMG from [Releases](../../releases).
+2. Open `Apace.dmg`, then drag **Apace** onto the **Applications** folder shown beside it.
+3. Open Apace from Applications and complete the permission checklist.
 
 ## Architecture
 
@@ -60,7 +62,8 @@ open Apace.xcodeproj       # then build & run the Apace scheme
 ```
 
 Apace lives in the menu bar. Hold **Right Option** to dictate and release to insert the
-text; grant Microphone, Speech Recognition, and Accessibility access when prompted.
+text; grant Microphone, Speech Recognition, Input Monitoring, and Accessibility access
+when prompted.
 
 ## Security
 

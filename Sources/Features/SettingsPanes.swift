@@ -129,7 +129,7 @@ struct CommandPane: View {
 
                 if settings.commandEnabled {
                     Text(
-                        "Double-tap Right Option and hold the second tap, speak a request, and release — the answer appears in the notch. (A single hold dictates as usual.)"
+                        "Double-tap Right Option and hold the second tap, speak a request, and release. Apace answers in the notch, or — for requests like “say this in Portuguese” — rewrites the text field you're focused on and pastes the result. (A single hold dictates as usual.)"
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -169,7 +169,10 @@ struct CommandPane: View {
         switch settings.visionProvider {
         case .onDevice:
             "Answers on your Mac with Apple Intelligence (macOS 26). On-device screen "
-                + "vision is limited today — use Gemini for full screen understanding."
+                + "vision is limited today — use a cloud provider for full screen understanding."
+        case .anthropic:
+            "Sends your request — and the screenshot, if enabled — to Anthropic's Claude. "
+                + "Uses the same key as Cleanup and Mac control, stored in your Keychain."
         case .gemini:
             "Sends your request — and the screenshot, if enabled — to Google Gemini. The "
                 + "key is stored in your Keychain."
