@@ -1,9 +1,6 @@
 import Foundation
-import HuggingFace
-import MLXHuggingFace
 import MLXLLM
 import MLXLMCommon
-import Tokenizers
 
 /// On-device cleanup via a small local LLM (MLX) — the privacy default for Macs without
 /// Apple Intelligence. Loads Qwen2.5-1.5B-Instruct (4-bit) once and keeps it resident;
@@ -44,7 +41,11 @@ actor MLXCleaner {
 
         let configuration = configuration
         let task = Task {
-            try await #huggingFaceLoadModelContainer(configuration: configuration)
+            try await loadModelContainer(
+                from: HuggingFaceDownloader(),
+                using: HuggingFaceTokenizerLoader(),
+                configuration: configuration
+            )
         }
         loadTask = task
 
