@@ -39,8 +39,8 @@ targets:
         PRODUCT_NAME: Apace
         PRODUCT_BUNDLE_IDENTIFIER: so.apace
         APP_DISPLAY_NAME: Apace
-        MARKETING_VERSION: "0.1.5"
-        CURRENT_PROJECT_VERSION: "6"
+        MARKETING_VERSION: "0.1.6"
+        CURRENT_PROJECT_VERSION: "7"
         # Sparkle EdDSA public key for verifying updates. Generate with Sparkle's
         # `generate_keys`; paste the public key here (the private key stays out of git).
         SPARKLE_PUBLIC_ED_KEY: "zOO/VOlBiXDHXRsNb9W3LcMRFq3ZO8UCcZEoWbGLzFg="
