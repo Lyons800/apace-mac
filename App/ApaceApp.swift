@@ -17,7 +17,11 @@ struct ApaceApp: App {
                 openHistory: delegate.openHistory
             )
         } label: {
-            Image(systemName: delegate.dictation.state.menuBarSymbol)
+            // Keep a stable, brand-like waveform in the menu bar. A generic mic that
+            // flips between outline and filled states is easily mistaken for a second
+            // microphone control or macOS's own recording indicators.
+            Image(systemName: "waveform")
+                .accessibilityLabel("Apace")
         }
     }
 }
@@ -60,15 +64,6 @@ private struct MenuContent: View {
 }
 
 extension DictationState {
-    /// SF Symbol shown in the status bar for the current state.
-    var menuBarSymbol: String {
-        switch self {
-        case .idle, .failed: "mic"
-        case .listening: "mic.fill"
-        case .transcribing, .inserting: "waveform"
-        }
-    }
-
     /// One-line, human-readable status for the menu header.
     var menuBarTitle: String {
         switch self {
