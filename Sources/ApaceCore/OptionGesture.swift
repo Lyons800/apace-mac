@@ -64,4 +64,15 @@ public struct OptionGesture: Sendable {
             return Output(route: .dictation, intent: wasTap ? .cancel : .stopDictation)
         }
     }
+
+    /// Abandons the active gesture when the system event stream becomes unreliable.
+    /// Recovery always cancels: it must never transcribe or insert a partial recording.
+    public mutating func cancelCurrent() -> Output? {
+        guard isPressed, let route = current else { return nil }
+        isPressed = false
+        current = nil
+        lastPressWasTap = false
+        lastUpTime = -1
+        return Output(route: route, intent: .cancel)
+    }
 }

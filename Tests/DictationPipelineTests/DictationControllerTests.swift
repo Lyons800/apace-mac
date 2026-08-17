@@ -112,6 +112,23 @@ struct DictationControllerTests {
         #expect(recorder.inserted.isEmpty)
     }
 
+    @Test("A blocked paste leaves recoverable text on the clipboard and reports it")
+    func blockedPaste() async {
+        let recorder = Recorder()
+        let controller = DictationController(
+            clients: makeClients(recorder: recorder, insertionResult: .copiedToClipboard)
+        )
+
+        await controller.handle(.startDictation)
+        await controller.handle(.stopDictation)
+
+        await #expect(
+            controller.currentState
+                == .failed(message: DictationController.copiedToClipboardMessage)
+        )
+        #expect(recorder.inserted == ["hello world"])
+    }
+
     @Test("Cancelling discards the dictation without inserting")
     func cancel() async {
         let recorder = Recorder()

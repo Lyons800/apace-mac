@@ -62,20 +62,32 @@ public struct HotkeyClient: Sendable {
 }
 
 /// Inserts text into the frontmost application.
+public enum TextInsertionResult: Sendable, Equatable {
+    /// A synthetic paste was posted to the focused application.
+    case inserted
+    /// macOS blocked synthetic input, so the text was left on the clipboard for recovery.
+    case copiedToClipboard
+    /// No paste or clipboard fallback could be completed.
+    case failed
+}
+
 public struct TextInserterClient: Sendable {
     /// Inserts `text` at the cursor — paste + ⌘V primary, with accessibility and
     /// synthetic-keystroke fallbacks handled inside the live adapter.
-    public var insert: @Sendable (String) async -> Void
+    public var insert: @Sendable (String) async -> TextInsertionResult
     /// Replaces the last `deleteCount` characters just inserted with `text` — used to
     /// swap the quick transcript for the AI-cleaned one once it's ready.
-    public var replaceLast: @Sendable (_ deleteCount: Int, _ text: String) async -> Void
+    public var replaceLast:
+        @Sendable (_ deleteCount: Int, _ text: String) async -> TextInsertionResult
 
     public init(
-        insert: @escaping @Sendable (String) async -> Void,
-        replaceLast: @escaping @Sendable (_ deleteCount: Int, _ text: String) async -> Void = {
-            _,
-            _ in
-        }
+        insert: @escaping @Sendable (String) async -> TextInsertionResult,
+        replaceLast:
+            @escaping @Sendable (_ deleteCount: Int, _ text: String) async -> TextInsertionResult =
+            {
+                _,
+                _ in .failed
+            }
     ) {
         self.insert = insert
         self.replaceLast = replaceLast

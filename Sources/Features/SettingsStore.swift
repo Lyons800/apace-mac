@@ -23,6 +23,10 @@ public final class SettingsStore {
         didSet { EnginePreference.engine = engine }
     }
 
+    public var transcriptionLanguage: TranscriptionLanguage {
+        didSet { SpeechLanguagePreference.language = transcriptionLanguage }
+    }
+
     public var aiCleanupEnabled: Bool {
         didSet { CleanupPreference.isEnabled = aiCleanupEnabled }
     }
@@ -89,6 +93,7 @@ public final class SettingsStore {
         self.credentials = credentials
         processingMode = ProcessingModePreference.mode
         engine = EnginePreference.engine
+        transcriptionLanguage = SpeechLanguagePreference.language
         aiCleanupEnabled = CleanupPreference.isEnabled
         cleanupProvider = CleanupPreference.provider
         apiKey = ""

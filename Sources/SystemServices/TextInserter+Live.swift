@@ -1,5 +1,6 @@
 import ApaceClients
 import AppKit
+import ApplicationServices
 import Carbon.HIToolbox
 import CoreGraphics
 
@@ -31,10 +32,11 @@ private enum TextInserter {
     private static let clipboardRestoreDelay: TimeInterval = 0.15
 
     @MainActor
-    static func insert(_ text: String) {
-        guard !text.isEmpty else { return }
-        guard !IsSecureEventInputEnabled() else { return }
-        paste(text)
+    static func insert(_ text: String) -> TextInsertionResult {
+        guard !text.isEmpty else { return .failed }
+        guard AXIsProcessTrusted() else { return copyOnly(text) }
+        guard !IsSecureEventInputEnabled() else { return copyOnly(text) }
+        return paste(text)
     }
 
     /// Replaces the last `count` inserted characters with `text`: selects them by
@@ -42,16 +44,16 @@ private enum TextInserter {
     /// Selecting (rather than deleting) keeps it to one visible change and lets the app's
     /// own undo treat it as a replace.
     @MainActor
-    static func replaceLast(_ count: Int, with text: String) {
-        guard count > 0 else { return }
-        guard !IsSecureEventInputEnabled() else { return }
-        selectBackward(count)
-        paste(text)
+    static func replaceLast(_ count: Int, with text: String) -> TextInsertionResult {
+        guard count > 0 else { return .failed }
+        guard !IsSecureEventInputEnabled() else { return .failed }
+        guard selectBackward(count) else { return .failed }
+        return paste(text)
     }
 
     @MainActor
-    private static func selectBackward(_ count: Int) {
-        guard let source = CGEventSource(stateID: .combinedSessionState) else { return }
+    private static func selectBackward(_ count: Int) -> Bool {
+        guard let source = CGEventSource(stateID: .combinedSessionState) else { return false }
         let left = CGKeyCode(kVK_LeftArrow)
         for _ in 0..<count {
             let down = CGEvent(keyboardEventSource: source, virtualKey: left, keyDown: true)
@@ -61,29 +63,45 @@ private enum TextInserter {
             up?.flags = .maskShift
             up?.post(tap: .cgAnnotatedSessionEventTap)
         }
+        return true
     }
 
     @MainActor
-    private static func paste(_ text: String) {
+    private static func paste(_ text: String) -> TextInsertionResult {
         let pasteboard = NSPasteboard.general
-        let previous = pasteboard.string(forType: .string)
+        let previous = PasteboardSnapshot(pasteboard)
 
         pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        guard pasteboard.setString(text, forType: .string) else {
+            previous.restore(to: pasteboard)
+            return .failed
+        }
+        let dictationChangeCount = pasteboard.changeCount
 
-        postCommandV()
+        guard postCommandV() else {
+            return copyOnly(text)
+        }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + clipboardRestoreDelay) {
-            pasteboard.clearContents()
-            if let previous {
-                pasteboard.setString(previous, forType: .string)
+            // Do not overwrite something the user copied while the synthetic paste was
+            // in flight. Restore only while our temporary clipboard is still current.
+            if pasteboard.changeCount == dictationChangeCount {
+                previous.restore(to: pasteboard)
             }
         }
+        return .inserted
+    }
+
+    @MainActor
+    private static func copyOnly(_ text: String) -> TextInsertionResult {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        return pasteboard.setString(text, forType: .string) ? .copiedToClipboard : .failed
     }
 
     /// Posts a ⌘V key-down/up pair into the session event stream.
-    private static func postCommandV() {
-        guard let source = CGEventSource(stateID: .combinedSessionState) else { return }
+    private static func postCommandV() -> Bool {
+        guard let source = CGEventSource(stateID: .combinedSessionState) else { return false }
         let vKeyCode = CGKeyCode(kVK_ANSI_V)
 
         let keyDown = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: true)
@@ -93,5 +111,38 @@ private enum TextInserter {
 
         keyDown?.post(tap: .cgAnnotatedSessionEventTap)
         keyUp?.post(tap: .cgAnnotatedSessionEventTap)
+        return keyDown != nil && keyUp != nil
+    }
+}
+
+/// A type-complete clipboard snapshot. Saving only `.string` destroys copied images,
+/// files and rich text, which is especially surprising in a background dictation app.
+private struct PasteboardSnapshot {
+    private let items: [[NSPasteboard.PasteboardType: Data]]
+
+    @MainActor
+    init(_ pasteboard: NSPasteboard) {
+        items = (pasteboard.pasteboardItems ?? []).map { item in
+            Dictionary(
+                uniqueKeysWithValues: item.types.compactMap { type in
+                    item.data(forType: type).map { (type, $0) }
+                }
+            )
+        }
+    }
+
+    @MainActor
+    func restore(to pasteboard: NSPasteboard) {
+        pasteboard.clearContents()
+        let restored = items.map { representations in
+            let item = NSPasteboardItem()
+            for (type, data) in representations {
+                item.setData(data, forType: type)
+            }
+            return item
+        }
+        if !restored.isEmpty {
+            pasteboard.writeObjects(restored)
+        }
     }
 }

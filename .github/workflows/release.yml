@@ -49,6 +49,9 @@ jobs:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: scripts/appcast.sh "${{ github.ref_name }}"
 
+      - name: Smoke-test signed release
+        run: scripts/smoke-release.sh
+
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}

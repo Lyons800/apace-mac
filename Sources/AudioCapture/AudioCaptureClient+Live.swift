@@ -38,15 +38,19 @@ enum AudioCaptureError: Error {
 /// through `lock`. The tap does only the unavoidable work (convert, append, hand off);
 /// it never touches the actor system.
 final class MicrophoneRecorder: @unchecked Sendable {
-    private let engine = AVAudioEngine()
     private let lock = NSLock()
 
+    private var engine: AVAudioEngine?
     private var recorded: [Float] = []
     private var continuation: AsyncStream<AudioChunk>.Continuation?
     private var converter: AVAudioConverter?
     private var targetFormat: AVAudioFormat?
 
     func start() throws -> AsyncStream<AudioChunk> {
+        // A fresh engine binds to the current system input device. Reusing a long-lived
+        // engine can leave it attached to a vanished built-in microphone after clamshell,
+        // dock, headset, or display changes.
+        let engine = AVAudioEngine()
         guard
             let targetFormat = AVAudioFormat(
                 commonFormat: .pcmFormatFloat32,
@@ -81,6 +85,7 @@ final class MicrophoneRecorder: @unchecked Sendable {
 
         lock.withLock {
             recorded.removeAll(keepingCapacity: true)
+            self.engine = engine
             self.continuation = continuation
             self.converter = converter
             self.targetFormat = targetFormat
@@ -90,7 +95,19 @@ final class MicrophoneRecorder: @unchecked Sendable {
             self?.capture(buffer)
         }
         engine.prepare()
-        try engine.start()
+        do {
+            try engine.start()
+        } catch {
+            input.removeTap(onBus: 0)
+            continuation.finish()
+            lock.withLock {
+                self.engine = nil
+                self.continuation = nil
+                self.converter = nil
+                self.targetFormat = nil
+            }
+            throw error
+        }
         return stream
     }
 
@@ -100,11 +117,15 @@ final class MicrophoneRecorder: @unchecked Sendable {
     }
 
     func stop() -> [Float] {
-        engine.inputNode.removeTap(onBus: 0)
-        if engine.isRunning {
-            engine.stop()
+        let activeEngine = lock.withLock { engine }
+        if let activeEngine {
+            activeEngine.inputNode.removeTap(onBus: 0)
+            if activeEngine.isRunning {
+                activeEngine.stop()
+            }
         }
         return lock.withLock {
+            engine = nil
             continuation?.finish()
             continuation = nil
             converter = nil

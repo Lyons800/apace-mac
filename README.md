@@ -11,15 +11,17 @@ lets you *act* on your voice, not just type.
 
 ## Features
 
-- **System-wide dictation** — global hotkey, push-to-talk / toggle / hybrid.
-- **On-device & private** — no telemetry, no cloud round-trip; audio never leaves your Mac.
-- **Multiple engines** — WhisperKit (CoreML), Parakeet, and Apple's SpeechAnalyzer, behind one boundary.
+- **System-wide dictation** — hold Right Option to talk, then release to insert.
+- **Local-first & private** — transcription and audio stay on your Mac; optional cleanup
+  uses the provider you explicitly select.
+- **Multiple engines** — WhisperKit (Core ML), Parakeet, and Apple Speech, with user
+  language controls and automatic detection where the engine supports it.
 - **Live notch overlay** — a Dynamic-Island-style transcript and waveform while you speak.
 - **Command mode** *(in progress)* — a spoken command that acts on your Mac, not just types.
 
 ## Requirements
 
-- macOS 14.0+ (Apple SpeechAnalyzer engine requires macOS 26+).
+- macOS 14.0+.
 - Apple silicon recommended for on-device models.
 
 ## Install

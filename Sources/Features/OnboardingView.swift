@@ -102,6 +102,11 @@ private struct PermissionRow: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 }
+                if permission == .inputMonitoring, hasRequested, status != .granted {
+                    Text("Enable Apace in Input Monitoring, then return here.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer()
             control

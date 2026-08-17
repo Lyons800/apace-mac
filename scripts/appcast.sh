@@ -20,7 +20,7 @@ REPO="Lyons800/apace-mac"
 echo "==> Fetching Sparkle tools"
 # Keep the release tooling aligned with the framework version resolved by the app.
 # A pinned asset is reproducible and avoids GitHub's unauthenticated API rate limit.
-SPARKLE_TOOLS_VERSION="${SPARKLE_TOOLS_VERSION:-2.9.4}"
+SPARKLE_TOOLS_VERSION="${SPARKLE_TOOLS_VERSION:-2.9.6}"
 TOOLS_URL="https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_TOOLS_VERSION}/Sparkle-${SPARKLE_TOOLS_VERSION}.tar.xz"
 curl --retry 5 --retry-all-errors -fsSL -o sparkle.tar.xz "$TOOLS_URL"
 mkdir -p sparkle-tools && tar -xJf sparkle.tar.xz -C sparkle-tools
