@@ -38,6 +38,7 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
     private var runLoop: CFRunLoop?
     private var started = false
     private var isStopped = false
+    private var watchdogGeneration = 0
 
     /// The tap/hold/double-tap timing rules, kept pure so they're tested directly.
     private var gesture = OptionGesture()
@@ -116,6 +117,7 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
     /// Called from the tap callback on the run-loop thread.
     func handle(_ type: CGEventType, _ event: CGEvent) {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            cancelActiveGesture()
             if let tap = lock.withLock({ eventTap }) {
                 CGEvent.tapEnable(tap: tap, enable: true)
             }
@@ -128,11 +130,23 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
 
         let pressed = event.flags.contains(modifier)
         let now = ProcessInfo.processInfo.systemUptime
+        var watchdog: Int?
 
         // Decide which stream this transition belongs to, then yield outside the lock.
         let target: (continuation: AsyncStream<HotkeyIntent>.Continuation?, intent: HotkeyIntent)? =
             lock.withLock {
-                guard let output = pressed ? gesture.pressed(at: now) : gesture.released(at: now)
+                let output: OptionGesture.Output?
+                if pressed {
+                    output = gesture.pressed(at: now)
+                    if output != nil {
+                        watchdogGeneration &+= 1
+                        watchdog = watchdogGeneration
+                    }
+                } else {
+                    watchdogGeneration &+= 1
+                    output = gesture.released(at: now)
+                }
+                guard let output
                 else { return nil }
                 switch output.route {
                 case .dictation: return (dictation, output.intent)
@@ -143,9 +157,54 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
         if let target {
             target.continuation?.yield(target.intent)
         }
+        if let watchdog {
+            startReleaseWatchdog(generation: watchdog)
+        }
+    }
+
+    /// Reconciles the logical gesture with the physical Right Option key. macOS can
+    /// drop a `flagsChanged` key-up while disabling or rebuilding an event tap; in that
+    /// case cancel safely instead of leaving the microphone running indefinitely.
+    private func startReleaseWatchdog(generation: Int) {
+        Task.detached { [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(350))
+                let stillCurrent = self.lock.withLock {
+                    self.watchdogGeneration == generation && !self.isStopped
+                }
+                guard stillCurrent else { return }
+
+                let physicallyPressed = CGEventSource.keyState(
+                    .combinedSessionState,
+                    key: self.keyCode
+                )
+                if !physicallyPressed {
+                    self.cancelActiveGesture(generation: generation)
+                    return
+                }
+            }
+        }
+    }
+
+    private func cancelActiveGesture(generation: Int? = nil) {
+        let target: (continuation: AsyncStream<HotkeyIntent>.Continuation?, intent: HotkeyIntent)? =
+            lock.withLock {
+                if let generation, generation != watchdogGeneration { return nil }
+                watchdogGeneration &+= 1
+                guard let output = gesture.cancelCurrent() else { return nil }
+                switch output.route {
+                case .dictation: return (dictation, output.intent)
+                case .command: return (command, output.intent)
+                }
+            }
+        if let target {
+            target.continuation?.yield(target.intent)
+        }
     }
 
     private func stop() {
+        cancelActiveGesture()
         let (tap, loop) = lock.withLock {
             isStopped = true
             return (eventTap, runLoop)

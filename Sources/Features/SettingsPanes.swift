@@ -52,6 +52,11 @@ struct TranscriptionPane: View {
                         Text(engine.displayName).tag(engine)
                     }
                 }
+                Picker("Language", selection: $settings.transcriptionLanguage) {
+                    ForEach(TranscriptionLanguage.allCases, id: \.self) { language in
+                        Text(language.displayName).tag(language)
+                    }
+                }
                 Text(engineNote)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -68,7 +73,8 @@ struct TranscriptionPane: View {
             "On-device, fast and accurate across 25 languages; handles pauses. "
                 + "Downloads a model on first use."
         case .parakeetEnglish:
-            "On-device, highest English accuracy. Downloads a model on first use."
+            "On-device, highest English accuracy. This model always uses English. "
+                + "Downloads a model on first use."
         case .whisper:
             "On-device, broad language support at good speed. Downloads a ~630 MB model."
         case .whisperMax:

@@ -62,10 +62,14 @@ actor ParakeetEngine {
     private func transcribeBatch(_ samples: [Float]) async throws -> String {
         let manager = try await readyBatchManager()
         var state = try TdtDecoderState(decoderLayers: version.decoderLayers)
+        let selectedLanguage = SpeechLanguagePreference.language
+        let language =
+            version == .v2
+            ? Language.english : selectedLanguage.code.flatMap(Language.init(rawValue:))
         let result = try await manager.transcribe(
             samples,
             decoderState: &state,
-            language: Language(rawValue: "en")
+            language: language
         )
         return result.text.trimmingCharacters(in: .whitespacesAndNewlines)
     }

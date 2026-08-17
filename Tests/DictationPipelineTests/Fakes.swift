@@ -36,6 +36,7 @@ func makeClients(
     transcribe: @escaping @Sendable ([Float]) async throws -> String = { _ in "hello world" },
     process: @escaping @Sendable (String) -> String = { $0 },
     quick: (@Sendable (String) -> String)? = nil,
+    insertionResult: TextInsertionResult = .inserted,
     hotkey: HotkeyClient = HotkeyClient(intents: { AsyncStream { $0.finish() } })
 ) -> DictationClients {
     let audio = AudioCaptureClient(
@@ -56,8 +57,14 @@ func makeClients(
     )
 
     let inserter = TextInserterClient(
-        insert: { recorder.append(inserted: $0) },
-        replaceLast: { _, text in recorder.append(replaced: text) }
+        insert: {
+            recorder.append(inserted: $0)
+            return insertionResult
+        },
+        replaceLast: { _, text in
+            recorder.append(replaced: text)
+            return .inserted
+        }
     )
     // By default quick mirrors process, so tests that don't care see a single insert with
     // no background replace; the two-phase test overrides quick to differ.

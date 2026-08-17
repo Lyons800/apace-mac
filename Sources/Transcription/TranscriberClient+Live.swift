@@ -36,7 +36,7 @@ enum AppleSpeech {
         guard !samples.isEmpty else { return "" }
         try await requestAuthorization()
 
-        guard let recognizer = SFSpeechRecognizer(), recognizer.isAvailable else {
+        guard let recognizer = Self.recognizer(), recognizer.isAvailable else {
             throw TranscriptionError.recognizerUnavailable
         }
         guard let buffer = makeBuffer(from: samples) else {
@@ -79,7 +79,7 @@ enum AppleSpeech {
             let work = Task {
                 do {
                     try await requestAuthorization()
-                    guard let recognizer = SFSpeechRecognizer(), recognizer.isAvailable else {
+                    guard let recognizer = Self.recognizer(), recognizer.isAvailable else {
                         throw TranscriptionError.recognizerUnavailable
                     }
 
@@ -130,6 +130,12 @@ enum AppleSpeech {
             }
             continuation.onTermination = { _ in work.cancel() }
         }
+    }
+
+    private static func recognizer() -> SFSpeechRecognizer? {
+        let selected = SpeechLanguagePreference.language
+        guard let code = selected.code else { return SFSpeechRecognizer() }
+        return SFSpeechRecognizer(locale: Locale(identifier: code))
     }
 
     private static func requestAuthorization() async throws {

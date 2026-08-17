@@ -119,10 +119,16 @@ public actor DictationController {
             let quick = clients.processor.quick(raw)
             apply(.finalTranscript(quick))
             if case .inserting(let inserted) = state {
-                await clients.inserter.insert(inserted)
-                apply(.textInserted)
-                // …then run the full pass and swap it in only if it changed.
-                refine(raw: raw, inserted: inserted)
+                switch await clients.inserter.insert(inserted) {
+                case .inserted:
+                    apply(.textInserted)
+                    // …then run the full pass and swap it in only if it changed.
+                    refine(raw: raw, inserted: inserted)
+                case .copiedToClipboard:
+                    apply(.failed(Self.copiedToClipboardMessage))
+                case .failed:
+                    apply(.failed(Self.insertionErrorMessage))
+                }
             }
         } catch {
             apply(.failed(Self.transcriptionErrorMessage))
@@ -139,7 +145,7 @@ public actor DictationController {
         refineTask = Task { [clients] in
             let full = await clients.processor.process(raw)
             guard !Task.isCancelled, full != inserted else { return }
-            await clients.inserter.replaceLast(inserted.count, full)
+            _ = await clients.inserter.replaceLast(inserted.count, full)
         }
     }
 
@@ -224,6 +230,8 @@ public actor DictationController {
     static let minimumSamples = 4_000
     static let previewIntervalMS = 350
     static let previewWindowSamples = 96_000  // ~6s at 16 kHz
+    static let copiedToClipboardMessage = "Paste was blocked — text copied. Press ⌘V."
+    static let insertionErrorMessage = "Couldn't insert text. Open History to recover it."
 
     /// Whether the tail of the buffer carries speech energy — used to hold the preview
     /// steady through a pause instead of re-transcribing silence.

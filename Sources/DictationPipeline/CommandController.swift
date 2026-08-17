@@ -128,8 +128,13 @@ public actor CommandController {
                 clients.control.perform(.key(0, .maskCommand))  // ⌘A
                 try? await Task.sleep(for: .milliseconds(80))
             }
-            await clients.inserter.insert(text)
-            emit(.answer(text))
+            let result = await clients.inserter.insert(text)
+            emit(
+                .answer(
+                    result == .inserted
+                        ? text : "Paste was blocked — the result is on your clipboard."
+                )
+            )
             scheduleReset()
         case .control:
             if preferences.controlEnabled() {

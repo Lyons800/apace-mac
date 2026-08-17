@@ -88,8 +88,11 @@ func makeCommandClients(
         }),
         focus: FocusClient(focusedField: { field }),
         inserter: TextInserterClient(
-            insert: { recorder.recordInsert($0) },
-            replaceLast: { _, _ in }
+            insert: {
+                recorder.recordInsert($0)
+                return .inserted
+            },
+            replaceLast: { _, _ in .inserted }
         ),
         control: ComputerControlClient(perform: { recorder.recordControl($0) }),
         automation: automation,

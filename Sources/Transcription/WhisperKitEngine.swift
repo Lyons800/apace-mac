@@ -27,7 +27,12 @@ actor WhisperKitEngine {
 
     func transcribe(_ samples: [Float], vocabulary: Vocabulary) async throws -> String {
         let kit = try await ready()
-        var options = DecodingOptions(language: "en", temperature: 0.0)
+        let language = SpeechLanguagePreference.language.code
+        var options = DecodingOptions(
+            language: language,
+            temperature: 0.0,
+            detectLanguage: language == nil
+        )
         if let prompt = vocabulary.decoderPrompt, let tokenizer = kit.tokenizer {
             options.promptTokens = tokenizer.encode(text: " " + prompt)
                 .filter { $0 < tokenizer.specialTokens.specialTokenBegin }

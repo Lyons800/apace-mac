@@ -12,11 +12,12 @@ struct PermissionTests {
         }
     }
 
-    @Test("Dictation and the hotkey are covered without redundant grants")
+    @Test("Dictation, the global hotkey, and insertion are covered")
     func coversTheStack() {
         #expect(Permission.allCases.contains(.microphone))
         #expect(Permission.allCases.contains(.speechRecognition))
+        #expect(Permission.allCases.contains(.inputMonitoring))
         #expect(Permission.allCases.contains(.accessibility))
-        #expect(Permission.allCases.count == 3)
+        #expect(Permission.allCases.count == 4)
     }
 }

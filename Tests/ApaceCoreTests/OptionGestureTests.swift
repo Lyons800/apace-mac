@@ -57,4 +57,13 @@ struct OptionGestureTests {
         #expect(gesture.released(at: 0.5) != nil)
         #expect(gesture.released(at: 0.6) == nil)
     }
+
+    @Test("Recovery cancels an active hold and resets the gesture")
+    func recoveryCancellation() {
+        var gesture = OptionGesture()
+        _ = gesture.pressed(at: 0)
+        #expect(gesture.cancelCurrent() == .init(route: .dictation, intent: .cancel))
+        #expect(gesture.cancelCurrent() == nil)
+        #expect(gesture.pressed(at: 1) == .init(route: .dictation, intent: .startDictation))
+    }
 }

@@ -40,7 +40,7 @@ private func stubClients(transcript: String) -> DictationClients {
             transcribe: { _ in transcript }
         ),
         hotkey: HotkeyClient(intents: { AsyncStream { $0.finish() } }),
-        inserter: TextInserterClient(insert: { _ in })
+        inserter: TextInserterClient(insert: { _ in .inserted })
     )
 }
 
