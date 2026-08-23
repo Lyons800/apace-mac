@@ -66,4 +66,18 @@ struct OptionGestureTests {
         #expect(gesture.cancelCurrent() == nil)
         #expect(gesture.pressed(at: 1) == .init(route: .dictation, intent: .startDictation))
     }
+
+    @Test("Release recovery ignores one stale modifier-state sample")
+    func releaseWatchdogDebouncesState() {
+        var watchdog = ModifierReleaseWatchdog()
+        let firstMiss = watchdog.observe(isPressed: false)
+        let pressedAgain = watchdog.observe(isPressed: true)
+        let nextMiss = watchdog.observe(isPressed: false)
+        let confirmedRelease = watchdog.observe(isPressed: false)
+
+        #expect(!firstMiss)
+        #expect(!pressedAgain)
+        #expect(!nextMiss)
+        #expect(confirmedRelease)
+    }
 }

@@ -76,3 +76,25 @@ public struct OptionGesture: Sendable {
         return Output(route: route, intent: .cancel)
     }
 }
+
+/// Filters transient modifier-state misses before treating a held key as released.
+/// The window server can briefly lag the event tap, so one stale reading must not
+/// cancel a recording that has only just started.
+public struct ModifierReleaseWatchdog: Sendable {
+    private let missesBeforeRelease: Int
+    private var consecutiveMisses = 0
+
+    public init(missesBeforeRelease: Int = 2) {
+        self.missesBeforeRelease = max(1, missesBeforeRelease)
+    }
+
+    /// Returns `true` once enough consecutive samples report the modifier as released.
+    public mutating func observe(isPressed: Bool) -> Bool {
+        if isPressed {
+            consecutiveMisses = 0
+            return false
+        }
+        consecutiveMisses += 1
+        return consecutiveMisses >= missesBeforeRelease
+    }
+}
