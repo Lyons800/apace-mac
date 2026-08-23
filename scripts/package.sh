@@ -69,6 +69,8 @@ mkdir -p "$DMG_ROOT"
 cp -R "$APP" "$DMG_ROOT/"
 
 sips -s format png assets/dmg-background.svg --out "$DMG_BACKGROUND" >/dev/null
+# HFS+ is create-dmg's default and avoids APFS container/device indirection that
+# prevents create-dmg 1.3 from finding its mounted volume on macOS Tahoe.
 create-dmg \
   --volname "Apace" \
   --background "$DMG_BACKGROUND" \
@@ -80,7 +82,7 @@ create-dmg \
   --hide-extension "Apace.app" \
   --app-drop-link 490 235 \
   --no-internet-enable \
-  --filesystem APFS \
+  --filesystem HFS+ \
   --overwrite \
   "$DIST/Apace.dmg" \
   "$DMG_ROOT"

@@ -168,6 +168,7 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
     private func startReleaseWatchdog(generation: Int) {
         Task.detached { [weak self] in
             guard let self else { return }
+            var releaseWatchdog = ModifierReleaseWatchdog()
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(350))
                 let stillCurrent = self.lock.withLock {
@@ -175,11 +176,12 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
                 }
                 guard stillCurrent else { return }
 
-                let physicallyPressed = CGEventSource.keyState(
-                    .combinedSessionState,
-                    key: self.keyCode
-                )
-                if !physicallyPressed {
+                // Option is a modifier and is represented in the source's flag state.
+                // `keyState` is not reliable for modifier-only keys and caused v0.1.8
+                // to cancel every recording shortly after it started.
+                let optionPressed = CGEventSource.flagsState(.combinedSessionState)
+                    .contains(self.modifier)
+                if releaseWatchdog.observe(isPressed: optionPressed) {
                     self.cancelActiveGesture(generation: generation)
                     return
                 }

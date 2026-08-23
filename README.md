@@ -64,7 +64,7 @@ open Apace.xcodeproj       # then build & run the Apace scheme
 ```
 
 Apace lives in the menu bar. Hold **Right Option** to dictate and release to insert the
-text; grant Microphone, Speech Recognition, and Accessibility access
+text; grant Microphone, Speech Recognition, Input Monitoring, and Accessibility access
 when prompted.
 
 ## Security
