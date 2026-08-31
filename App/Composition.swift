@@ -48,8 +48,9 @@ extension CommandClients {
     private static let confirmControlAction: @Sendable (String) async -> Bool = { summary in
         await MainActor.run {
             let alert = NSAlert()
-            alert.messageText = "Run this action?"
-            alert.informativeText = summary
+            let parts = summary.components(separatedBy: "\n\n")
+            alert.messageText = parts.first ?? "Run this action?"
+            alert.informativeText = parts.dropFirst().joined(separator: "\n\n")
             alert.addButton(withTitle: "Run")
             alert.addButton(withTitle: "Cancel")
             NSApp.activate(ignoringOtherApps: true)

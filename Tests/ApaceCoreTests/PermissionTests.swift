@@ -18,6 +18,7 @@ struct PermissionTests {
         #expect(Permission.allCases.contains(.speechRecognition))
         #expect(Permission.allCases.contains(.inputMonitoring))
         #expect(Permission.allCases.contains(.accessibility))
-        #expect(Permission.allCases.count == 4)
+        #expect(Permission.allCases.contains(.screenRecording))
+        #expect(Permission.allCases.count == 5)
     }
 }

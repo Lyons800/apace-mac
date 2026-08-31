@@ -16,22 +16,42 @@ public actor CommandController {
     private var resetTask: Task<Void, Never>?
     /// The in-flight computer-use loop, kept so a new gesture can abort it.
     private var controlTask: Task<Void, Never>?
+    private var conversation = CommandConversation()
+    private let now: @Sendable () -> Date
+    private let conversationLifetime: TimeInterval
 
     private let continuation: AsyncStream<CommandActivity>.Continuation
     public nonisolated let activities: AsyncStream<CommandActivity>
+    private let conversationContinuation: AsyncStream<[CommandTurn]>.Continuation
+    public nonisolated let conversations: AsyncStream<[CommandTurn]>
 
     private static let log = Logger(subsystem: "so.apace", category: "command")
 
-    public init(clients: CommandClients, preferences: CommandPreferencesReader = .live) {
+    public init(
+        clients: CommandClients,
+        preferences: CommandPreferencesReader = .live,
+        now: @escaping @Sendable () -> Date = { Date() },
+        conversationLifetime: TimeInterval = CommandConversation.defaultLifetime
+    ) {
         self.clients = clients
         self.preferences = preferences
+        self.now = now
+        self.conversationLifetime = conversationLifetime
         (activities, continuation) = AsyncStream.makeStream()
+        (conversations, conversationContinuation) = AsyncStream.makeStream()
         continuation.yield(.idle)
+        conversationContinuation.yield([])
     }
 
     /// The current activity. Exposed mainly for tests and diagnostics; production code
     /// observes ``activities`` instead.
     public var currentActivity: CommandActivity { activity }
+    public var currentConversation: [CommandTurn] { conversation.turns }
+
+    public func resetConversation() {
+        conversation.reset()
+        conversationContinuation.yield([])
+    }
 
     /// Drives the controller from the command hotkey for the app's lifetime.
     public func run() async {
@@ -104,21 +124,25 @@ public actor CommandController {
     /// text for the focused field, or escalation to the control loop. A router
     /// failure falls back to the plain answer path so Q&A never breaks.
     private func runRouted(_ question: String) async {
+        if !preferences.followUpsEnabled() { resetConversation() }
+        let previousTurns = conversation.context(at: now(), lifetime: conversationLifetime)
+        appendTurn(.user, question)
         let field = clients.focus.focusedField()
         let screenshot =
             preferences.usesVision() && preferences.provider().supportsImages
             ? clients.screen.capture() : nil
         let decision: CommandDecision
         do {
-            decision = try await clients.router.route(question, field, screenshot)
+            decision = try await clients.router.route(question, field, screenshot, previousTurns)
         } catch {
             Self.log.error("router failed, falling back to answer: \(error)")
-            await runAnswer(question)
+            await runAnswer(question, conversation: previousTurns)
             scheduleReset()
             return
         }
         switch decision {
         case .answer(let text):
+            appendTurn(.assistant, text)
             emit(.answer(text))
             scheduleReset()
         case .insert(let text, let replacesDraft):
@@ -129,18 +153,20 @@ public actor CommandController {
                 try? await Task.sleep(for: .milliseconds(80))
             }
             let result = await clients.inserter.insert(text)
-            emit(
-                .answer(
-                    result == .inserted
-                        ? text : "Paste was blocked — the result is on your clipboard."
-                )
-            )
+            let response =
+                result == .inserted
+                ? text : "Paste was blocked — the result is on your clipboard."
+            appendTurn(.assistant, response)
+            emit(.answer(response))
             scheduleReset()
-        case .control:
+        case .control(let goal, let risk):
             if preferences.controlEnabled() {
-                runControl(question)
+                await runControl(goal, risk: risk)
             } else {
-                emit(.answer("Turn on “Let it control my Mac” (Settings → Command) for that."))
+                let message =
+                    "Turn on “Let it control my Mac” (Settings → Commands & Actions) for that."
+                appendTurn(.assistant, message)
+                emit(.answer(message))
                 scheduleReset()
             }
         }
@@ -148,23 +174,40 @@ public actor CommandController {
 
     /// Answers the command with the vision model, with a screenshot only when the chosen
     /// provider can actually look at one.
-    private func runAnswer(_ question: String) async {
+    private func runAnswer(_ question: String, conversation: [CommandTurn]) async {
         let screenshot =
             preferences.usesVision() && preferences.provider().supportsImages
             ? clients.screen.capture() : nil
         do {
-            let answer = try await clients.vision.respond(question, screenshot)
+            let prompt = Self.followUpPrompt(question: question, conversation: conversation)
+            let answer = try await clients.vision.respond(prompt, screenshot)
+            appendTurn(.assistant, answer)
             emit(.answer(answer))
         } catch {
             Self.log.error("vision answer failed: \(error)")
-            emit(.failed("Couldn't get an answer just now."))
+            let message = "Couldn't get an answer just now."
+            appendTurn(.assistant, message)
+            emit(.failed(message))
         }
     }
 
     /// Drives the Mac to carry out the command via the computer-use loop, mirroring its
     /// progress into the notch and routing its confirmation prompts to the app. Runs in
     /// a stored task so a new gesture (or cancel) can abort a runaway loop.
-    private func runControl(_ goal: String) {
+    private func runControl(_ goal: String, risk: CommandActionRisk) async {
+        let effectiveRisk = CommandActionRisk.resolved(proposed: risk, goal: goal)
+        let requiresApproval = effectiveRisk.requiresApproval
+        if requiresApproval {
+            let summary = "\(effectiveRisk.approvalTitle)\n\n\(goal)"
+            guard await clients.confirm(summary) else {
+                appendTurn(.assistant, "Cancelled.")
+                emit(.answer("Cancelled."))
+                scheduleReset()
+                return
+            }
+        }
+
+        appendTurn(.assistant, "Running: \(goal)")
         let handler = AutomationHandler(
             onStep: { [weak self] step in
                 Task { await self?.apply(step) }
@@ -172,8 +215,13 @@ public actor CommandController {
             confirm: clients.confirm
         )
         let automation = clients.automation
+        let request = AutomationRequest(
+            goal: goal,
+            risk: effectiveRisk,
+            userApproved: requiresApproval
+        )
         controlTask = Task { [weak self] in
-            await automation.run(goal, handler)
+            await automation.run(request, handler)
             await self?.controlFinished()
         }
     }
@@ -191,9 +239,12 @@ public actor CommandController {
         switch step {
         case .thinking: emit(.thinking)
         case .acting(let description): emit(.answer(description))
-        case .done(let summary): emit(.answer(summary))
+        case .done(let summary):
+            appendTurn(.assistant, summary)
+            emit(.answer(summary))
         case .failed(let message):
             Self.log.error("automation failed: \(message, privacy: .public)")
+            appendTurn(.assistant, message)
             emit(.failed(message))
         }
     }
@@ -229,5 +280,28 @@ public actor CommandController {
     private func emit(_ next: CommandActivity) {
         activity = next
         continuation.yield(next)
+    }
+
+    private func appendTurn(_ role: CommandTurn.Role, _ text: String) {
+        conversation.append(role: role, text: text, at: now())
+        conversationContinuation.yield(conversation.turns)
+    }
+
+    private static func followUpPrompt(
+        question: String,
+        conversation: [CommandTurn]
+    ) -> String {
+        guard !conversation.isEmpty else { return question }
+        let turns = conversation.map {
+            "\($0.role == .user ? "User" : "Apace"): \($0.text)"
+        }
+        return """
+            Continue this recent conversation. Resolve short follow-ups from it, but do not \
+            invent missing details.
+
+            \(turns.joined(separator: "\n"))
+
+            User: \(question)
+            """
     }
 }

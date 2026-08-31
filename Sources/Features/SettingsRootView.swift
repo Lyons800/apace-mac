@@ -10,18 +10,21 @@ public struct SettingsRootView: View {
     @Bindable private var vocabulary: VocabularyStore
     @Bindable private var permissions: PermissionsModel
     @Bindable private var modelStatus: ModelStatus
+    @Bindable private var command: CommandModel
     @State private var selection: SettingsSection = .general
 
     public init(
         settings: SettingsStore,
         vocabulary: VocabularyStore,
         permissions: PermissionsModel,
-        modelStatus: ModelStatus
+        modelStatus: ModelStatus,
+        command: CommandModel
     ) {
         self.settings = settings
         self.vocabulary = vocabulary
         self.permissions = permissions
         self.modelStatus = modelStatus
+        self.command = command
     }
 
     public var body: some View {
@@ -37,10 +40,8 @@ public struct SettingsRootView: View {
         .frame(width: 700, height: 540)
     }
 
-    /// Command mode (and its Mac control) is experimental — hidden unless the
-    /// experimental flag is set, so a shipped build is core dictation only.
     private var sections: [SettingsSection] {
-        SettingsSection.allCases.filter { $0 != .command || ExperimentalPreference.isEnabled }
+        SettingsSection.allCases
     }
 
     @ViewBuilder
@@ -49,7 +50,8 @@ public struct SettingsRootView: View {
         case .general: GeneralPane(settings: settings)
         case .transcription: TranscriptionPane(settings: settings)
         case .cleanup: CleanupPane(settings: settings)
-        case .command: CommandPane(settings: settings)
+        case .command:
+            CommandPane(settings: settings, command: command, permissions: permissions)
         case .dictionary: DictionaryPane(vocabulary: vocabulary)
         case .health:
             HealthPane(permissions: permissions, modelStatus: modelStatus)
@@ -74,7 +76,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: "General"
         case .transcription: "Transcription"
         case .cleanup: "Cleanup"
-        case .command: "Command mode"
+        case .command: "Commands & Actions"
         case .dictionary: "Names & Terms"
         case .health: "Dictation Health"
         case .about: "About"

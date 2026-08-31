@@ -85,6 +85,10 @@ public final class SettingsStore {
         didSet { CommandPreference.controlEnabled = commandControl }
     }
 
+    public var commandFollowUps: Bool {
+        didSet { CommandPreference.followUpsEnabled = commandFollowUps }
+    }
+
     /// The provider that answers commands. Changing it reloads its API key.
     public var visionProvider: VisionProvider {
         didSet {
@@ -129,6 +133,7 @@ public final class SettingsStore {
         commandEnabled = CommandPreference.isEnabled
         commandVision = CommandPreference.usesVision
         commandControl = CommandPreference.controlEnabled
+        commandFollowUps = CommandPreference.followUpsEnabled
         visionProvider = CommandPreference.provider
         visionKey = ""
         apiKey = loadKey(

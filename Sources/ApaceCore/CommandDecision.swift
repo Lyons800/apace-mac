@@ -10,6 +10,7 @@ public enum CommandDecision: Equatable, Sendable {
     /// field's current content is selected first, so a transformed draft (a
     /// translation, a rewrite) replaces the original instead of appending to it.
     case insert(text: String, replacesDraft: Bool)
-    /// A multi-step task that needs to drive the Mac — escalate to the control loop.
-    case control
+    /// A multi-step task that needs to drive the Mac. `goal` is self-contained after the
+    /// router resolves follow-up phrases such as "send it" against recent conversation.
+    case control(goal: String, risk: CommandActionRisk)
 }

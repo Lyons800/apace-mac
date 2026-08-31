@@ -46,7 +46,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings: settings,
         vocabulary: vocabulary,
         permissions: permissions,
-        modelStatus: modelStatus
+        modelStatus: modelStatus,
+        command: command
     )
     private lazy var historyWindow = HistoryWindowController(recovery: recovery)
 

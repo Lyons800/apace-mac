@@ -56,13 +56,20 @@ public struct FocusClient: Sendable {
 /// screenshot) and returns the decision; throwing falls back to the plain answer path.
 public struct CommandRouterClient: Sendable {
     public var route:
-        @Sendable (_ request: String, _ field: FocusedField?, _ image: Data?) async throws ->
-            CommandDecision
+        @Sendable (
+            _ request: String,
+            _ field: FocusedField?,
+            _ image: Data?,
+            _ conversation: [CommandTurn]
+        ) async throws -> CommandDecision
 
     public init(
         route:
             @escaping @Sendable (
-                _ request: String, _ field: FocusedField?, _ image: Data?
+                _ request: String,
+                _ field: FocusedField?,
+                _ image: Data?,
+                _ conversation: [CommandTurn]
             ) async throws -> CommandDecision
     ) {
         self.route = route
@@ -118,17 +125,20 @@ public struct CommandClients: Sendable {
 public struct CommandPreferencesReader: Sendable {
     public var isEnabled: @Sendable () -> Bool
     public var controlEnabled: @Sendable () -> Bool
+    public var followUpsEnabled: @Sendable () -> Bool
     public var usesVision: @Sendable () -> Bool
     public var provider: @Sendable () -> VisionProvider
 
     public init(
         isEnabled: @escaping @Sendable () -> Bool,
         controlEnabled: @escaping @Sendable () -> Bool,
+        followUpsEnabled: @escaping @Sendable () -> Bool,
         usesVision: @escaping @Sendable () -> Bool,
         provider: @escaping @Sendable () -> VisionProvider
     ) {
         self.isEnabled = isEnabled
         self.controlEnabled = controlEnabled
+        self.followUpsEnabled = followUpsEnabled
         self.usesVision = usesVision
         self.provider = provider
     }
@@ -136,6 +146,7 @@ public struct CommandPreferencesReader: Sendable {
     public static let live = CommandPreferencesReader(
         isEnabled: { CommandPreference.isEnabled },
         controlEnabled: { CommandPreference.controlEnabled },
+        followUpsEnabled: { CommandPreference.followUpsEnabled },
         usesVision: { CommandPreference.usesVision },
         provider: { CommandPreference.provider }
     )
@@ -148,6 +159,7 @@ public enum CommandPreference {
     static let visionKey = "apace.commandVisionEnabled"
     static let providerKey = "apace.visionProvider"
     static let controlKey = "apace.commandControlEnabled"
+    static let followUpsKey = "apace.commandFollowUpsEnabled"
 
     public static var isEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: enabledKey) }
@@ -159,6 +171,16 @@ public enum CommandPreference {
     public static var controlEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: controlKey) }
         set { UserDefaults.standard.set(newValue, forKey: controlKey) }
+    }
+
+    /// Follow-ups are on by default. The conversation is memory-only, bounded, and
+    /// expires after inactivity; users can turn this off for isolated commands.
+    public static var followUpsEnabled: Bool {
+        get {
+            guard UserDefaults.standard.object(forKey: followUpsKey) != nil else { return true }
+            return UserDefaults.standard.bool(forKey: followUpsKey)
+        }
+        set { UserDefaults.standard.set(newValue, forKey: followUpsKey) }
     }
 
     public static var usesVision: Bool {

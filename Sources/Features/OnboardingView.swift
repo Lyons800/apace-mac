@@ -107,6 +107,11 @@ private struct PermissionRow: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
+                if permission == .screenRecording, hasRequested, status != .granted {
+                    Text("Enable Apace in Screen & System Audio Recording, then return here.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer()
             control

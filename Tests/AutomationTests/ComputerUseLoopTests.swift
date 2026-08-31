@@ -94,6 +94,14 @@ private func makeHandler(_ recorder: LoopRecorder) -> AutomationHandler {
     AutomationHandler(onStep: { recorder.record(step: $0) }, confirm: { _ in true })
 }
 
+private func request(
+    _ goal: String,
+    risk: CommandActionRisk = .readOnly,
+    approved: Bool = false
+) -> AutomationRequest {
+    AutomationRequest(goal: goal, risk: risk, userApproved: approved)
+}
+
 @Suite("Computer-use loop")
 struct ComputerUseLoopTests {
     @Test("The first request carries the goal and an initial screenshot")
@@ -101,7 +109,7 @@ struct ComputerUseLoopTests {
         let recorder = LoopRecorder()
         let agent = makeAgent(recorder: recorder, replies: [[.text("All set.")]])
 
-        await agent.run(goal: "open my calendar", handler: makeHandler(recorder))
+        await agent.run(request: request("open my calendar"), handler: makeHandler(recorder))
 
         #expect(recorder.requests.count == 1)
         let first = recorder.requests[0].first
@@ -129,7 +137,7 @@ struct ComputerUseLoopTests {
             ]
         )
 
-        await agent.run(goal: "click the button", handler: makeHandler(recorder))
+        await agent.run(request: request("click the button"), handler: makeHandler(recorder))
 
         #expect(recorder.actions == ["click"])
         // The follow-up request must answer tool use "t1" with an image result.
@@ -163,7 +171,7 @@ struct ComputerUseLoopTests {
             ]
         )
 
-        await agent.run(goal: "scroll the list", handler: makeHandler(recorder))
+        await agent.run(request: request("scroll the list"), handler: makeHandler(recorder))
         #expect(recorder.actions == ["moveMouse", "scroll"])
     }
 
@@ -181,7 +189,9 @@ struct ComputerUseLoopTests {
             }
         )
 
-        let task = Task { await agent.run(goal: "wait forever", handler: makeHandler(recorder)) }
+        let task = Task {
+            await agent.run(request: request("wait forever"), handler: makeHandler(recorder))
+        }
         try? await Task.sleep(for: .milliseconds(100))
         task.cancel()
         await task.value
@@ -200,7 +210,7 @@ struct ComputerUseLoopTests {
             transport: { _, _, _ in throw CUError.http(429, "rate limited") }
         )
 
-        await agent.run(goal: "do a thing", handler: makeHandler(recorder))
+        await agent.run(request: request("do a thing"), handler: makeHandler(recorder))
 
         guard case .failed(let message) = recorder.steps.last else {
             Issue.record("expected a failure step")
@@ -219,7 +229,7 @@ struct ComputerUseLoopTests {
         )
         let agent = makeAgent(recorder: recorder, replies: alwaysActing)
 
-        await agent.run(goal: "loop forever", handler: makeHandler(recorder))
+        await agent.run(request: request("loop forever"), handler: makeHandler(recorder))
 
         guard case .failed(let message) = recorder.steps.last else {
             Issue.record("expected a failure step")

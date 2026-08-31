@@ -23,6 +23,9 @@ public final class PermissionsModel {
         requiredPermissions: @escaping @Sendable () -> [Permission] = {
             var required: [Permission] = [.microphone, .inputMonitoring, .accessibility]
             if EnginePreference.engine == .apple { required.insert(.speechRecognition, at: 1) }
+            if CommandPreference.usesVision || CommandPreference.controlEnabled {
+                required.append(.screenRecording)
+            }
             return required
         }
     ) {
@@ -88,7 +91,7 @@ public final class PermissionsModel {
         // access APIs do not, so after the first request a false preflight means the
         // user must repair the grant in System Settings.
         switch permission {
-        case .inputMonitoring, .accessibility: return PermissionStatus.denied
+        case .inputMonitoring, .accessibility, .screenRecording: return PermissionStatus.denied
         case .microphone, .speechRecognition: return PermissionStatus.notDetermined
         }
     }

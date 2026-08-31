@@ -6,6 +6,7 @@ public enum Permission: String, CaseIterable, Sendable {
     case speechRecognition
     case inputMonitoring
     case accessibility
+    case screenRecording
 
     /// Name shown in onboarding and settings.
     public var title: String {
@@ -14,6 +15,7 @@ public enum Permission: String, CaseIterable, Sendable {
         case .speechRecognition: "Speech Recognition"
         case .inputMonitoring: "Input Monitoring"
         case .accessibility: "Accessibility"
+        case .screenRecording: "Screen Recording"
         }
     }
 
@@ -28,6 +30,8 @@ public enum Permission: String, CaseIterable, Sendable {
             "So Apace can detect your dictation shortcut while you work in another app."
         case .accessibility:
             "So Apace can insert text into the app you're using."
+        case .screenRecording:
+            "So screen-aware commands can understand and operate the visible Mac interface."
         }
     }
 }

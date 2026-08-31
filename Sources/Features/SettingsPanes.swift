@@ -173,6 +173,8 @@ struct CleanupPane: View {
 
 struct CommandPane: View {
     @Bindable var settings: SettingsStore
+    @Bindable var command: CommandModel
+    @Bindable var permissions: PermissionsModel
 
     var body: some View {
         Form {
@@ -186,7 +188,24 @@ struct CommandPane: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                    Toggle("Remember follow-up commands", isOn: $settings.commandFollowUps)
+                    if settings.commandFollowUps {
+                        Text(
+                            "Apace keeps up to 12 recent command turns in memory for 10 minutes, so phrases like “make it shorter”, “send it”, or “do the same for João” can refer to the conversation. Nothing is saved after Apace quits."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+
                     Toggle("Let it see my screen", isOn: $settings.commandVision)
+
+                    if settings.commandVision || settings.commandControl {
+                        HStack {
+                            Label("Screen Recording", systemImage: "rectangle.inset.filled")
+                            Spacer()
+                            screenRecordingControl
+                        }
+                    }
 
                     Picker("Provider", selection: $settings.visionProvider) {
                         ForEach(VisionProvider.allCases, id: \.self) { provider in
@@ -213,8 +232,52 @@ struct CommandPane: View {
                     }
                 }
             }
+
+            if settings.commandEnabled, settings.commandFollowUps {
+                Section("Current conversation") {
+                    if command.conversation.isEmpty {
+                        Text("No command conversation yet.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(command.conversation.suffix(6)) { turn in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(turn.role == .user ? "You" : "Apace")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.secondary)
+                                Text(turn.text)
+                                    .lineLimit(3)
+                            }
+                        }
+                        Button("Start New Conversation", action: command.resetConversation)
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
+        .onAppear { permissions.refresh() }
+    }
+
+    @ViewBuilder
+    private var screenRecordingControl: some View {
+        switch permissions.status(.screenRecording) {
+        case .granted:
+            Label("Granted", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+        case .notDetermined:
+            Button(permissions.hasRequested(.screenRecording) ? "Open Settings" : "Grant") {
+                requestScreenRecording()
+            }
+        case .denied:
+            Button("Open Settings") { permissions.openSettings(.screenRecording) }
+        }
+    }
+
+    private func requestScreenRecording() {
+        if permissions.hasRequested(.screenRecording) {
+            permissions.openSettings(.screenRecording)
+        } else {
+            Task { await permissions.request(.screenRecording) }
+        }
     }
 
     private var providerNote: String {

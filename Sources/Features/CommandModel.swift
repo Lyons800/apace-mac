@@ -8,6 +8,7 @@ import Observation
 @Observable
 public final class CommandModel {
     public private(set) var activity: CommandActivity = .idle
+    public private(set) var conversation: [CommandTurn] = []
 
     private let controller: CommandController
 
@@ -24,5 +25,15 @@ public final class CommandModel {
                 self?.activity = activity
             }
         }
+        Task { [weak self] in
+            for await conversation in controller.conversations {
+                self?.conversation = conversation
+            }
+        }
+    }
+
+    public func resetConversation() {
+        let controller = controller
+        Task { await controller.resetConversation() }
     }
 }

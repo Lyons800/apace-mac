@@ -15,7 +15,24 @@ struct RouterReplyTests {
             RouterReply.parse(#"{"action":"insert","text":"até já","replace":true}"#)
                 == .insert(text: "até já", replacesDraft: true)
         )
-        #expect(RouterReply.parse(#"{"action":"control"}"#) == .control)
+        #expect(
+            RouterReply.parse(
+                #"{"action":"control","goal":"open Calendar","risk":"readOnly"}"#
+            ) == .control(goal: "open Calendar", risk: .readOnly)
+        )
+    }
+
+    @Test("Legacy control replies fall back to the spoken goal and require review")
+    func controlFallback() {
+        #expect(
+            RouterReply.parse(#"{"action":"control"}"#, fallbackGoal: "open my calendar")
+                == .control(goal: "open my calendar", risk: .unknown)
+        )
+        #expect(
+            RouterReply.parse(
+                #"{"action":"control","goal":"do the thing","risk":"unexpected"}"#
+            ) == .control(goal: "do the thing", risk: .unknown)
+        )
     }
 
     @Test("An insert without a replace flag defaults to typing at the cursor")

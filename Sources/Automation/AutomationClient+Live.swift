@@ -8,13 +8,13 @@ extension AutomationClient {
         control: ComputerControlClient,
         apiKey: @escaping @Sendable () -> String?
     ) -> AutomationClient {
-        AutomationClient { goal, handler in
+        AutomationClient { request, handler in
             guard let key = apiKey(), !key.isEmpty else {
                 handler.onStep(.failed("Add an Anthropic API key to run commands."))
                 return
             }
             let agent = ComputerUseAgent(screen: screen, control: control, apiKey: key)
-            await agent.run(goal: goal, handler: handler)
+            await agent.run(request: request, handler: handler)
         }
     }
 }

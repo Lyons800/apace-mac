@@ -1,3 +1,5 @@
+import ApaceClients
+import ApaceCore
 import CoreGraphics
 import Testing
 
@@ -5,13 +7,28 @@ import Testing
 
 @Suite("Computer-use agent")
 struct ComputerUseAgentTests {
-    @Test("Flags outward goals as risky, leaves navigation alone")
-    func riskDetection() {
-        #expect(ComputerUseAgent.isRisky("message André that I'm late"))
-        #expect(ComputerUseAgent.isRisky("delete that email"))
-        #expect(ComputerUseAgent.isRisky("buy the concert tickets"))
-        #expect(!ComputerUseAgent.isRisky("open my calendar"))
-        #expect(!ComputerUseAgent.isRisky("scroll down and find the settings"))
+    @Test("The model receives the exact approval boundary")
+    func approvalInstructions() {
+        let approved = ComputerUseAgent.instructions(
+            request: AutomationRequest(
+                goal: "send the drafted message to André",
+                risk: .externalCommunication,
+                userApproved: true
+            )
+        )
+        #expect(approved.contains("send the drafted message to André"))
+        #expect(approved.contains("approved this exact high-impact action"))
+        #expect(approved.contains("Do not broaden it"))
+
+        let readOnly = ComputerUseAgent.instructions(
+            request: AutomationRequest(
+                goal: "open my calendar",
+                risk: .readOnly,
+                userApproved: false
+            )
+        )
+        #expect(readOnly.contains("classified as read-only"))
+        #expect(readOnly.contains("Do not make changes or communicate externally"))
     }
 
     @Test("Parses key combos into keycode and modifiers")

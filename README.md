@@ -21,7 +21,10 @@ lets you *act* on your voice, not just type.
 - **Reliable recovery** — retry failed transcription or insertion from local History.
 - **Dictation Health** — test permissions, shortcut capture, microphone input,
   transcription, and insertion from one Settings pane.
-- **Command mode** *(in progress)* — a spoken command that acts on your Mac, not just types.
+- **Commands & Actions** *(experimental)* — ask a question, rewrite the focused draft,
+  or let Apace complete a supervised task on your Mac. Short-lived, memory-only
+  conversation context lets “make it shorter”, “send it”, and similar follow-ups refer
+  to the preceding command. Outward and high-impact actions require approval.
 
 ## Requirements
 
@@ -71,7 +74,8 @@ Apace lives in the menu bar. By default, hold **Right Option** to dictate and re
 insert the text. Settings lets you change the key, use a hands-free start/stop toggle,
 choose a microphone, and run an end-to-end Dictation Health test. Grant Microphone,
 Input Monitoring, and Accessibility access when prompted; Apple Speech also needs Speech
-Recognition access when selected.
+Recognition access when selected. Screen-aware commands additionally need Screen Recording,
+which can be granted directly from **Settings → Commands & Actions**.
 
 ## Security
 

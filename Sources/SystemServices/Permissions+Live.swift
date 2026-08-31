@@ -24,6 +24,8 @@ private enum Permissions {
             CGPreflightListenEventAccess() ? .granted : .notDetermined
         case .accessibility:
             AXIsProcessTrusted() ? .granted : .notDetermined
+        case .screenRecording:
+            CGPreflightScreenCaptureAccess() ? .granted : .notDetermined
         }
     }
 
@@ -43,6 +45,9 @@ private enum Permissions {
             // the user to Settings. We report back whatever the state is afterwards.
             promptForAccessibility()
             if !AXIsProcessTrusted() { openSettings(for: permission) }
+        case .screenRecording:
+            _ = CGRequestScreenCaptureAccess()
+            if !CGPreflightScreenCaptureAccess() { openSettings(for: permission) }
         }
         return status(of: permission)
     }
@@ -54,6 +59,7 @@ private enum Permissions {
         case .speechRecognition: anchor = "Privacy_SpeechRecognition"
         case .inputMonitoring: anchor = "Privacy_ListenEvent"
         case .accessibility: anchor = "Privacy_Accessibility"
+        case .screenRecording: anchor = "Privacy_ScreenCapture"
         }
         guard
             let url = URL(

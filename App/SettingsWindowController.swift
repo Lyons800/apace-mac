@@ -10,21 +10,25 @@ final class SettingsWindowController {
     private let vocabulary: VocabularyStore
     private let permissions: PermissionsModel
     private let modelStatus: ModelStatus
+    private let command: CommandModel
     private var window: NSWindow?
 
     init(
         settings: SettingsStore,
         vocabulary: VocabularyStore,
         permissions: PermissionsModel,
-        modelStatus: ModelStatus
+        modelStatus: ModelStatus,
+        command: CommandModel
     ) {
         self.settings = settings
         self.vocabulary = vocabulary
         self.permissions = permissions
         self.modelStatus = modelStatus
+        self.command = command
     }
 
     func present() {
+        permissions.refresh()
         if window == nil {
             let window = NSWindow(
                 contentViewController: NSHostingController(
@@ -32,7 +36,8 @@ final class SettingsWindowController {
                         settings: settings,
                         vocabulary: vocabulary,
                         permissions: permissions,
-                        modelStatus: modelStatus
+                        modelStatus: modelStatus,
+                        command: command
                     )
                 )
             )

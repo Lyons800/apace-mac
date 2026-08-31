@@ -1,5 +1,19 @@
 import ApaceCore
 
+/// A fully resolved request handed to the visual-control loop. By this point follow-up
+/// references have been expanded and any required user approval has been recorded.
+public struct AutomationRequest: Equatable, Sendable {
+    public let goal: String
+    public let risk: CommandActionRisk
+    public let userApproved: Bool
+
+    public init(goal: String, risk: CommandActionRisk, userApproved: Bool) {
+        self.goal = goal
+        self.risk = risk
+        self.userApproved = userApproved
+    }
+}
+
 /// Callbacks the automation loop uses to report progress and ask permission, supplied by
 /// whoever runs a command. Keeping confirmation as an injected closure means the loop
 /// never needs to know about the notch or the UI — it just asks, and waits.
@@ -21,10 +35,14 @@ public struct AutomationHandler: Sendable {
 /// Runs a spoken goal to completion by driving the Mac (the computer-use loop). Behind a
 /// port so command mode depends only on this, not on the model or the event injection.
 public struct AutomationClient: Sendable {
-    public var run: @Sendable (_ goal: String, _ handler: AutomationHandler) async -> Void
+    public var run:
+        @Sendable (_ request: AutomationRequest, _ handler: AutomationHandler) async -> Void
 
     public init(
-        run: @escaping @Sendable (_ goal: String, _ handler: AutomationHandler) async -> Void
+        run:
+            @escaping @Sendable (_ request: AutomationRequest, _ handler: AutomationHandler) async
+            ->
+            Void
     ) {
         self.run = run
     }
