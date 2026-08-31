@@ -81,10 +81,13 @@ public actor DictationController {
         refineTask?.cancel()  // a prior dictation's cleanup must not land on this one
         apply(.startRequested)
         do {
+            clients.health.record(.clearError)
             let audio = try clients.audio.start()
             captureTask = Task { [levelContinuation] in
                 for await chunk in audio {
-                    levelContinuation.yield(Self.level(of: chunk.samples))
+                    let level = Self.level(of: chunk.samples)
+                    levelContinuation.yield(level)
+                    clients.health.record(.inputLevel(level))
                 }
             }
             previewTask = Task { [weak self] in
@@ -92,6 +95,7 @@ public actor DictationController {
             }
         } catch {
             cleanUp()
+            clients.health.record(.error(Self.microphoneErrorMessage))
             apply(.failed(Self.microphoneErrorMessage))
         }
     }
@@ -100,6 +104,7 @@ public actor DictationController {
         guard isListening else { return }
         stopCapture()
         let samples = clients.audio.stop()
+        clients.health.record(.recordingFinished(Double(samples.count) / 16_000))
         // A tap too short to be speech — e.g. the first tap when starting a command by
         // double-tapping — is dropped silently rather than transcribed.
         guard samples.count >= Self.minimumSamples else {
@@ -112,25 +117,69 @@ public actor DictationController {
             apply(.cancelled)
             return
         }
+        let historyID = clients.history.begin(samples)
         apply(.stopRequested)
         do {
+            let startedTranscription = Date()
             let raw = try await clients.transcriber.transcribe(samples)
+            clients.health.record(
+                .transcriptionFinished(Date().timeIntervalSince(startedTranscription))
+            )
             // Insert the instant tidy right away so nothing waits on AI cleanup…
             let quick = clients.processor.quick(raw)
+            guard !quick.isEmpty else {
+                clients.health.record(.error(Self.noSpeechRecognizedMessage))
+                updateHistory(
+                    historyID,
+                    rawText: raw,
+                    status: .failed,
+                    errorMessage: Self.noSpeechRecognizedMessage
+                )
+                apply(.finalTranscript(""))
+                return
+            }
+            updateHistory(
+                historyID,
+                rawText: raw,
+                text: quick,
+                status: .processing,
+                discardAudio: true
+            )
             apply(.finalTranscript(quick))
             if case .inserting(let inserted) = state {
                 switch await clients.inserter.insert(inserted) {
                 case .inserted:
+                    clients.health.record(.insertion("Inserted"))
+                    updateHistory(historyID, status: .inserted)
                     apply(.textInserted)
                     // …then run the full pass and swap it in only if it changed.
-                    refine(raw: raw, inserted: inserted)
+                    refine(raw: raw, inserted: inserted, historyID: historyID)
                 case .copiedToClipboard:
+                    clients.health.record(.insertion("Copied to clipboard"))
+                    updateHistory(
+                        historyID,
+                        status: .copiedToClipboard,
+                        errorMessage: Self.copiedToClipboardMessage
+                    )
                     apply(.failed(Self.copiedToClipboardMessage))
                 case .failed:
+                    clients.health.record(.insertion("Failed"))
+                    clients.health.record(.error(Self.insertionErrorMessage))
+                    updateHistory(
+                        historyID,
+                        status: .failed,
+                        errorMessage: Self.insertionErrorMessage
+                    )
                     apply(.failed(Self.insertionErrorMessage))
                 }
             }
         } catch {
+            clients.health.record(.error(Self.transcriptionErrorMessage))
+            updateHistory(
+                historyID,
+                status: .failed,
+                errorMessage: Self.transcriptionErrorMessage
+            )
             apply(.failed(Self.transcriptionErrorMessage))
         }
     }
@@ -140,13 +189,28 @@ public actor DictationController {
     /// cleaned version lands a moment later, instead of waiting for the model. Cancelled
     /// the moment another dictation starts, so a late refine can never drop a previous
     /// transcript at the new cursor.
-    private func refine(raw: String, inserted: String) {
+    private func refine(raw: String, inserted: String, historyID: UUID?) {
         refineTask?.cancel()
         refineTask = Task { [clients] in
             let full = await clients.processor.process(raw)
             guard !Task.isCancelled, full != inserted else { return }
-            _ = await clients.inserter.replaceLast(inserted.count, full)
+            if await clients.inserter.replaceLast(inserted.count, full) == .inserted {
+                guard let historyID else { return }
+                clients.history.update(historyID, nil, full, nil, nil, false)
+            }
         }
+    }
+
+    private func updateHistory(
+        _ id: UUID?,
+        rawText: String? = nil,
+        text: String? = nil,
+        status: HistoryEntryStatus? = nil,
+        errorMessage: String? = nil,
+        discardAudio: Bool = false
+    ) {
+        guard let id else { return }
+        clients.history.update(id, rawText, text, status, errorMessage, discardAudio)
     }
 
     private func cancel() {
@@ -278,4 +342,5 @@ public actor DictationController {
 
     static let microphoneErrorMessage = "Couldn't access the microphone."
     static let transcriptionErrorMessage = "Transcription failed. Please try again."
+    static let noSpeechRecognizedMessage = "No speech was recognized. You can retry from History."
 }

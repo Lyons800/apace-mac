@@ -37,10 +37,12 @@ private enum Permissions {
             }
         case .inputMonitoring:
             _ = CGRequestListenEventAccess()
+            if !CGPreflightListenEventAccess() { openSettings(for: permission) }
         case .accessibility:
             // There's no in-app grant; prompting opens the system dialog that sends
             // the user to Settings. We report back whatever the state is afterwards.
             promptForAccessibility()
+            if !AXIsProcessTrusted() { openSettings(for: permission) }
         }
         return status(of: permission)
     }

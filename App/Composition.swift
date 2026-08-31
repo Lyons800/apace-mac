@@ -16,7 +16,9 @@ extension DictationClients {
         transcriber: .selected,
         hotkey: .live,
         inserter: .live,
-        processor: .live
+        processor: .live,
+        history: .live,
+        health: .live
     )
 }
 

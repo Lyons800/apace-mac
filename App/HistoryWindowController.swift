@@ -1,4 +1,5 @@
 import AppKit
+import DictationPipeline
 import Features
 import SwiftUI
 
@@ -6,8 +7,12 @@ import SwiftUI
 /// dictations are recorded while the window is closed.
 @MainActor
 final class HistoryWindowController {
-    private let history = HistoryModel()
+    private let history: HistoryModel
     private var window: NSWindow?
+
+    init(recovery: DictationRecoveryController) {
+        history = HistoryModel(retryEntry: { id in await recovery.retry(id) })
+    }
 
     func present() {
         history.refresh()

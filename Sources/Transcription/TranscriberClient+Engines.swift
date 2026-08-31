@@ -49,13 +49,13 @@ extension TranscriberClient {
 
     /// Awaits the engine's model being ready (downloaded + loaded), for the first-run
     /// "preparing model" indicator. Apple's engine needs no download and returns at once.
-    public static func prepare(_ engine: TranscriptionEngine) async {
+    public static func prepare(_ engine: TranscriptionEngine) async throws {
         switch engine {
         case .apple: break
-        case .parakeet: await ParakeetEngine.v3.prepare()
-        case .parakeetEnglish: await ParakeetEngine.v2.prepare()
-        case .whisper: await WhisperKitEngine.turbo.prepare()
-        case .whisperMax: await WhisperKitEngine.largeV3.prepare()
+        case .parakeet: try await ParakeetEngine.v3.prepare()
+        case .parakeetEnglish: try await ParakeetEngine.v2.prepare()
+        case .whisper: try await WhisperKitEngine.turbo.prepare()
+        case .whisperMax: try await WhisperKitEngine.largeV3.prepare()
         }
     }
 

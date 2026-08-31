@@ -48,8 +48,8 @@ actor WhisperKitEngine {
     }
 
     /// Awaits the model being loaded — used to drive the "preparing model" indicator.
-    func prepare() async {
-        _ = try? await ready()
+    func prepare() async throws {
+        _ = try await ready()
     }
 
     private func ready() async throws -> WhisperKit {

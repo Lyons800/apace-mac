@@ -1,4 +1,6 @@
+import ApaceClients
 import ApaceCore
+import Foundation
 import Testing
 
 @testable import DictationPipeline
@@ -112,6 +114,46 @@ struct DictationControllerTests {
         #expect(recorder.inserted.isEmpty)
     }
 
+    @Test("A transcription failure leaves its captured audio recoverable in History")
+    func transcriptionFailureIsRecoverable() async {
+        let recorder = Recorder()
+        let history = HistoryRecorder()
+        let controller = DictationController(
+            clients: makeClients(
+                recorder: recorder,
+                transcribe: { _ in throw FakeError.transcriptionFailed },
+                history: history.client
+            )
+        )
+
+        await controller.handle(.startDictation)
+        await controller.handle(.stopDictation)
+
+        #expect(history.begunSampleCounts == [8_000])
+        #expect(history.updates.last?.status == .failed)
+        #expect(history.updates.last?.discardAudio == false)
+    }
+
+    @Test("Recognized text is persisted before insertion and successful audio is discarded")
+    func successfulTranscriptIsPersisted() async {
+        let recorder = Recorder()
+        let history = HistoryRecorder()
+        let controller = DictationController(
+            clients: makeClients(recorder: recorder, history: history.client)
+        )
+
+        await controller.handle(.startDictation)
+        await controller.handle(.stopDictation)
+
+        #expect(
+            history.updates.contains { update in
+                update.rawText == "hello world" && update.text == "hello world"
+                    && update.discardAudio
+            }
+        )
+        #expect(history.updates.last?.status == .inserted)
+    }
+
     @Test("A blocked paste leaves recoverable text on the clipboard and reports it")
     func blockedPaste() async {
         let recorder = Recorder()
@@ -189,5 +231,43 @@ struct DictationControllerTests {
         await loop.value
 
         #expect(recorder.inserted == ["hello world"])
+    }
+}
+
+private struct RecordedHistoryUpdate: Sendable {
+    let rawText: String?
+    let text: String?
+    let status: HistoryEntryStatus?
+    let discardAudio: Bool
+}
+
+private final class HistoryRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private let id = UUID()
+    private var sampleCounts: [Int] = []
+    private var recordedUpdates: [RecordedHistoryUpdate] = []
+
+    var begunSampleCounts: [Int] { lock.withLock { sampleCounts } }
+    var updates: [RecordedHistoryUpdate] { lock.withLock { recordedUpdates } }
+
+    var client: TranscriptHistoryClient {
+        TranscriptHistoryClient(
+            begin: { [self] samples in
+                lock.withLock { sampleCounts.append(samples.count) }
+                return id
+            },
+            update: { [self] _, rawText, text, status, _, discardAudio in
+                lock.withLock {
+                    recordedUpdates.append(
+                        RecordedHistoryUpdate(
+                            rawText: rawText,
+                            text: text,
+                            status: status,
+                            discardAudio: discardAudio
+                        )
+                    )
+                }
+            }
+        )
     }
 }

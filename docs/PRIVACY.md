@@ -7,7 +7,7 @@ lives at https://tryapace.com/privacy.
 ## On-device by default
 
 Your voice is recorded, transcribed, and cleaned up entirely on your Mac. Audio never
-leaves your computer. The speech models (Parakeet, Apple SpeechAnalyzer, WhisperKit) and
+leaves your computer. The speech models (Parakeet, Apple Speech Recognition, WhisperKit) and
 the default cleanup (Apple Intelligence, or a small local model) all run locally on
 Apple Silicon.
 
@@ -32,11 +32,16 @@ first use, and (2) checking for updates via Sparkle. Neither sends any personal 
 
 ## Your data stays on your Mac
 
-Transcription history is stored in `~/Library/Application Support/Apace/`; any API keys
-you add live in your macOS Keychain. Delete them any time. We never see either.
+Transcription history is stored in Apace's local app preferences. If transcription fails
+or the app is interrupted, Apace temporarily keeps that recording in
+`~/Library/Application Support/Apace/Recovery/` so you can retry it from History. The
+recovery audio is deleted as soon as transcription succeeds, when its history item ages
+out, or when you clear History. Any API keys you add live in your macOS Keychain. Delete
+them any time. We never see any of this data.
 
-## Free and open source
+## Source available
 
-Apace is free and its source is public, so you can verify all of the above yourself.
+Apace's source is public under the PolyForm Strict license, so you can verify all of the
+above yourself.
 
-_Last updated: July 2026 · hello@tryapace.com_
+_Last updated: August 2026 · hello@tryapace.com_

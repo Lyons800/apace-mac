@@ -9,18 +9,24 @@ public struct DictationClients: Sendable {
     public var hotkey: HotkeyClient
     public var inserter: TextInserterClient
     public var processor: TextProcessorClient
+    public var history: TranscriptHistoryClient
+    public var health: DictationHealthClient
 
     public init(
         audio: AudioCaptureClient,
         transcriber: TranscriberClient,
         hotkey: HotkeyClient,
         inserter: TextInserterClient,
-        processor: TextProcessorClient = .passthrough
+        processor: TextProcessorClient = .passthrough,
+        history: TranscriptHistoryClient = .disabled,
+        health: DictationHealthClient = .disabled
     ) {
         self.audio = audio
         self.transcriber = transcriber
         self.hotkey = hotkey
         self.inserter = inserter
         self.processor = processor
+        self.history = history
+        self.health = health
     }
 }

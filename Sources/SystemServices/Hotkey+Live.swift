@@ -5,19 +5,19 @@ import CoreGraphics
 import Foundation
 
 extension HotkeyClient {
-    /// Dictation push-to-talk: hold Right Option, release to insert.
+    /// Global dictation shortcut, using the key and hold/toggle behaviour from Settings.
     public static let live = HotkeyClient(intents: { OptionHotkeyMonitor.shared.dictationIntents() }
     )
 
-    /// Command mode: double-tap Right Option and hold the second tap, release to send.
-    /// Shares the Option key with dictation — a single hold dictates, a quick double-tap
+    /// Command mode: double-tap the chosen modifier and hold the second tap, release to send.
+    /// Shares the shortcut with dictation — a single hold dictates, a quick double-tap
     /// hold gives a command — so there's no separate modifier to collide with shortcuts.
     public static let command = HotkeyClient(intents: {
         OptionHotkeyMonitor.shared.commandIntents()
     })
 }
 
-/// Watches Right Option through a `CGEvent` tap and routes each hold to one of two
+/// Watches the chosen modifier through a `CGEvent` tap and routes each hold to one of two
 /// streams: a plain hold dictates, a double-tap-and-hold is a command. Distinguishing
 /// them needs the timing of the previous tap, so a single monitor owns both streams.
 ///
@@ -26,9 +26,6 @@ extension HotkeyClient {
 /// `lock`.
 final class OptionHotkeyMonitor: @unchecked Sendable {
     static let shared = OptionHotkeyMonitor()
-
-    private let keyCode = CGKeyCode(kVK_RightOption)
-    private let modifier: CGEventFlags = .maskAlternate
 
     private let lock = NSLock()
     private var dictation: AsyncStream<HotkeyIntent>.Continuation?
@@ -76,7 +73,9 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
 
     /// Creates the session tap. Returns nil until Accessibility is granted.
     private func makeTap() -> CFMachPort? {
-        let mask = CGEventMask(1) << CGEventType.flagsChanged.rawValue
+        let mask =
+            (CGEventMask(1) << CGEventType.flagsChanged.rawValue)
+            | (CGEventMask(1) << CGEventType.keyDown.rawValue)
         return CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
@@ -124,6 +123,16 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
             return
         }
 
+        if type == .keyDown, isCancelEvent(event) {
+            DictationHealthRecorder.shared.record(.hotkey("Cancel shortcut pressed"))
+            cancelAll()
+            return
+        }
+
+        let shortcut = DictationShortcutPreference.activation
+        let keyCode = Self.keyCode(for: shortcut)
+        let modifier = Self.modifier(for: shortcut)
+
         guard type == .flagsChanged,
             event.getIntegerValueField(.keyboardEventKeycode) == Int64(keyCode)
         else { return }
@@ -131,6 +140,16 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
         let pressed = event.flags.contains(modifier)
         let now = ProcessInfo.processInfo.systemUptime
         var watchdog: Int?
+
+        if DictationShortcutPreference.mode == .handsFree {
+            guard pressed else { return }
+            lock.withLock { gesture = OptionGesture() }
+            DictationHealthRecorder.shared.record(
+                .hotkey("\(shortcut.displayName) pressed (hands-free toggle)")
+            )
+            lock.withLock { dictation }?.yield(.toggleDictation)
+            return
+        }
 
         // Decide which stream this transition belongs to, then yield outside the lock.
         let target: (continuation: AsyncStream<HotkeyIntent>.Continuation?, intent: HotkeyIntent)? =
@@ -155,17 +174,21 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
             }
 
         if let target {
+            let action = pressed ? "pressed" : "released"
+            DictationHealthRecorder.shared.record(
+                .hotkey("\(shortcut.displayName) \(action)")
+            )
             target.continuation?.yield(target.intent)
         }
         if let watchdog {
-            startReleaseWatchdog(generation: watchdog)
+            startReleaseWatchdog(generation: watchdog, modifier: modifier)
         }
     }
 
-    /// Reconciles the logical gesture with the physical Right Option key. macOS can
+    /// Reconciles the logical gesture with the physical shortcut key. macOS can
     /// drop a `flagsChanged` key-up while disabling or rebuilding an event tap; in that
     /// case cancel safely instead of leaving the microphone running indefinitely.
-    private func startReleaseWatchdog(generation: Int) {
+    private func startReleaseWatchdog(generation: Int, modifier: CGEventFlags) {
         Task.detached { [weak self] in
             guard let self else { return }
             var releaseWatchdog = ModifierReleaseWatchdog()
@@ -176,11 +199,11 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
                 }
                 guard stillCurrent else { return }
 
-                // Option is a modifier and is represented in the source's flag state.
+                // Modifier keys are represented in the source's flag state.
                 // `keyState` is not reliable for modifier-only keys and caused v0.1.8
                 // to cancel every recording shortly after it started.
                 let optionPressed = CGEventSource.flagsState(.combinedSessionState)
-                    .contains(self.modifier)
+                    .contains(modifier)
                 if releaseWatchdog.observe(isPressed: optionPressed) {
                     self.cancelActiveGesture(generation: generation)
                     return
@@ -202,6 +225,41 @@ final class OptionHotkeyMonitor: @unchecked Sendable {
             }
         if let target {
             target.continuation?.yield(target.intent)
+        }
+    }
+
+    private func cancelAll() {
+        cancelActiveGesture()
+        let continuations = lock.withLock { (dictation, command) }
+        continuations.0?.yield(.cancel)
+        continuations.1?.yield(.cancel)
+    }
+
+    private func isCancelEvent(_ event: CGEvent) -> Bool {
+        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+        switch DictationShortcutPreference.cancel {
+        case .escape:
+            return keyCode == Int64(kVK_Escape)
+        case .commandPeriod:
+            return keyCode == Int64(kVK_ANSI_Period) && event.flags.contains(.maskCommand)
+        }
+    }
+
+    private static func keyCode(for key: DictationActivationKey) -> CGKeyCode {
+        switch key {
+        case .rightOption: CGKeyCode(kVK_RightOption)
+        case .leftOption: CGKeyCode(kVK_Option)
+        case .rightControl: CGKeyCode(kVK_RightControl)
+        case .leftControl: CGKeyCode(kVK_Control)
+        case .function: CGKeyCode(kVK_Function)
+        }
+    }
+
+    private static func modifier(for key: DictationActivationKey) -> CGEventFlags {
+        switch key {
+        case .rightOption, .leftOption: .maskAlternate
+        case .rightControl, .leftControl: .maskControl
+        case .function: .maskSecondaryFn
         }
     }
 

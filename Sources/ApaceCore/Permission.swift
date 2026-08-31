@@ -1,5 +1,5 @@
 /// A system permission Apace needs. Dictation needs the microphone and speech
-/// recognition. Input Monitoring allows the global hotkey to listen for Right Option;
+/// recognition. Input Monitoring allows the global hotkey to listen for the shortcut;
 /// Accessibility lets Apace paste into the focused application.
 public enum Permission: String, CaseIterable, Sendable {
     case microphone
@@ -25,7 +25,7 @@ public enum Permission: String, CaseIterable, Sendable {
         case .speechRecognition:
             "So Apace can turn your speech into text, on-device."
         case .inputMonitoring:
-            "So Apace can detect Right Option while you work in another app."
+            "So Apace can detect your dictation shortcut while you work in another app."
         case .accessibility:
             "So Apace can insert text into the app you're using."
         }
