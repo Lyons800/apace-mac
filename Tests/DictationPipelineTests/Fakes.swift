@@ -37,7 +37,8 @@ func makeClients(
     process: @escaping @Sendable (String) -> String = { $0 },
     quick: (@Sendable (String) -> String)? = nil,
     insertionResult: TextInsertionResult = .inserted,
-    hotkey: HotkeyClient = HotkeyClient(intents: { AsyncStream { $0.finish() } })
+    hotkey: HotkeyClient = HotkeyClient(intents: { AsyncStream { $0.finish() } }),
+    history: TranscriptHistoryClient = .disabled
 ) -> DictationClients {
     let audio = AudioCaptureClient(
         start: {
@@ -75,7 +76,8 @@ func makeClients(
         transcriber: transcriber,
         hotkey: hotkey,
         inserter: inserter,
-        processor: processor
+        processor: processor,
+        history: history
     )
 }
 

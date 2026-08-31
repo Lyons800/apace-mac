@@ -1,6 +1,7 @@
 @preconcurrency import AVFoundation
 import ApaceClients
 import ApaceCore
+import AudioToolbox
 import Foundation
 
 extension AudioCaptureClient {
@@ -39,12 +40,16 @@ enum AudioCaptureError: Error {
 /// it never touches the actor system.
 final class MicrophoneRecorder: @unchecked Sendable {
     private let lock = NSLock()
+    private let recoveryQueue = DispatchQueue(label: "so.apace.audio-recovery")
 
     private var engine: AVAudioEngine?
     private var recorded: [Float] = []
     private var continuation: AsyncStream<AudioChunk>.Continuation?
     private var converter: AVAudioConverter?
     private var targetFormat: AVAudioFormat?
+    private var configurationObserver: NSObjectProtocol?
+    private var isRecovering = false
+    private var recordingGeneration = 0
 
     func start() throws -> AsyncStream<AudioChunk> {
         // A fresh engine binds to the current system input device. Reusing a long-lived
@@ -63,6 +68,7 @@ final class MicrophoneRecorder: @unchecked Sendable {
         }
 
         let input = engine.inputNode
+        let microphoneName = Self.applyPreferredDevice(to: input)
 
         // Never install over an existing tap — `installTap` throws an *Objective-C*
         // exception (uncatchable in Swift, so a hard crash) if a tap is already there.
@@ -84,6 +90,7 @@ final class MicrophoneRecorder: @unchecked Sendable {
         )
 
         lock.withLock {
+            recordingGeneration &+= 1
             recorded.removeAll(keepingCapacity: true)
             self.engine = engine
             self.continuation = continuation
@@ -108,6 +115,10 @@ final class MicrophoneRecorder: @unchecked Sendable {
             }
             throw error
         }
+        if let microphoneName {
+            DictationHealthRecorder.shared.record(.microphone(microphoneName))
+        }
+        observeConfigurationChanges(for: engine)
         return stream
     }
 
@@ -117,7 +128,8 @@ final class MicrophoneRecorder: @unchecked Sendable {
     }
 
     func stop() -> [Float] {
-        let activeEngine = lock.withLock { engine }
+        let (activeEngine, observer) = lock.withLock { (engine, configurationObserver) }
+        if let observer { NotificationCenter.default.removeObserver(observer) }
         if let activeEngine {
             activeEngine.inputNode.removeTap(onBus: 0)
             if activeEngine.isRunning {
@@ -125,13 +137,115 @@ final class MicrophoneRecorder: @unchecked Sendable {
             }
         }
         return lock.withLock {
+            recordingGeneration &+= 1
             engine = nil
+            configurationObserver = nil
+            isRecovering = false
             continuation?.finish()
             continuation = nil
             converter = nil
             targetFormat = nil
             return recorded
         }
+    }
+
+    /// Headsets and display/dock microphones can disappear mid-recording. AVAudioEngine
+    /// then posts a configuration change and commonly stops. Rebuild it on a serial
+    /// queue, keeping the already-recorded samples and the same preview stream.
+    private func observeConfigurationChanges(for engine: AVAudioEngine) {
+        let observer = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: engine,
+            queue: nil
+        ) { [weak self, weak engine] _ in
+            guard let self, let engine else { return }
+            self.recoveryQueue.async { self.recover(changedEngine: engine) }
+        }
+        let accepted = lock.withLock { () -> Bool in
+            guard self.engine === engine else { return false }
+            configurationObserver = observer
+            return true
+        }
+        if !accepted { NotificationCenter.default.removeObserver(observer) }
+    }
+
+    private func recover(changedEngine: AVAudioEngine) {
+        let generation = lock.withLock { () -> Int? in
+            guard engine === changedEngine, !isRecovering else { return nil }
+            isRecovering = true
+            return recordingGeneration
+        }
+        guard let generation else { return }
+
+        if let observer = lock.withLock({ configurationObserver }) {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        changedEngine.inputNode.removeTap(onBus: 0)
+        if changedEngine.isRunning { changedEngine.stop() }
+
+        do {
+            let replacement = AVAudioEngine()
+            let input = replacement.inputNode
+            let microphoneName = Self.applyPreferredDevice(to: input)
+            let inputFormat = input.outputFormat(forBus: 0)
+            guard inputFormat.channelCount > 0, inputFormat.sampleRate > 0,
+                let targetFormat = lock.withLock({ self.targetFormat }),
+                let converter = AVAudioConverter(from: inputFormat, to: targetFormat)
+            else { throw AudioCaptureError.microphoneUnavailable }
+
+            input.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) {
+                [weak self] buffer, _ in self?.capture(buffer)
+            }
+            replacement.prepare()
+            try replacement.start()
+            let stillRecording = lock.withLock { () -> Bool in
+                guard recordingGeneration == generation, engine === changedEngine else {
+                    return false
+                }
+                engine = replacement
+                self.converter = converter
+                configurationObserver = nil
+                isRecovering = false
+                return true
+            }
+            guard stillRecording else {
+                input.removeTap(onBus: 0)
+                replacement.stop()
+                return
+            }
+            observeConfigurationChanges(for: replacement)
+            if let microphoneName {
+                DictationHealthRecorder.shared.record(.microphone(microphoneName))
+            }
+        } catch {
+            // Keep the captured audio recoverable. Stop will still return it, and a new
+            // dictation creates a fresh engine against the then-current default device.
+            lock.withLock {
+                guard recordingGeneration == generation, engine === changedEngine else { return }
+                engine = nil
+                configurationObserver = nil
+                isRecovering = false
+            }
+        }
+    }
+
+    private static func applyPreferredDevice(to input: AVAudioInputNode) -> String? {
+        guard let uid = MicrophonePreference.selectedUID,
+            let device = CoreAudioInputs.device(uid: uid),
+            let audioUnit = input.audioUnit
+        else { return CoreAudioInputs.defaultDevice()?.value.name }
+        var objectID = device.objectID
+        let result = AudioUnitSetProperty(
+            audioUnit,
+            kAudioOutputUnitProperty_CurrentDevice,
+            kAudioUnitScope_Global,
+            0,
+            &objectID,
+            UInt32(MemoryLayout<AudioDeviceID>.size)
+        )
+        // If the saved device vanished or cannot be opened, leaving the property alone
+        // makes AVAudioEngine use the current macOS default.
+        return result == noErr ? device.value.name : CoreAudioInputs.defaultDevice()?.value.name
     }
 
     /// Runs on the real-time audio thread. Converts the buffer, appends it to the

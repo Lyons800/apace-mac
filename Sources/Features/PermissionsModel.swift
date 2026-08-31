@@ -11,15 +11,37 @@ public final class PermissionsModel {
     public private(set) var requestedPermissions: Set<Permission> = []
 
     private let client: PermissionsClient
+    private let persistRequest: @Sendable (Permission) -> Void
+    private let requiredPermissionsProvider: @Sendable () -> [Permission]
 
-    public init(client: PermissionsClient) {
+    public init(
+        client: PermissionsClient,
+        requestedPermissions: Set<Permission> = PermissionRequestPreference.requested,
+        persistRequest: @escaping @Sendable (Permission) -> Void = {
+            PermissionRequestPreference.mark($0)
+        },
+        requiredPermissions: @escaping @Sendable () -> [Permission] = {
+            var required: [Permission] = [.microphone, .inputMonitoring, .accessibility]
+            if EnginePreference.engine == .apple { required.insert(.speechRecognition, at: 1) }
+            return required
+        }
+    ) {
         self.client = client
+        self.requestedPermissions = requestedPermissions
+        self.persistRequest = persistRequest
+        requiredPermissionsProvider = requiredPermissions
         refresh()
     }
 
     /// Whether every permission Apace needs has been granted.
     public var allGranted: Bool {
-        Permission.allCases.allSatisfy { statuses[$0] == .granted }
+        requiredPermissions.allSatisfy { statuses[$0] == .granted }
+    }
+
+    public var requiredPermissions: [Permission] { requiredPermissionsProvider() }
+
+    public func isRequired(_ permission: Permission) -> Bool {
+        requiredPermissions.contains(permission)
     }
 
     public func status(_ permission: Permission) -> PermissionStatus {
@@ -34,17 +56,40 @@ public final class PermissionsModel {
     /// since the user may have changed a grant in System Settings.
     public func refresh() {
         for permission in Permission.allCases {
-            statuses[permission] = client.status(permission)
+            statuses[permission] = effectiveStatus(
+                client.status(permission),
+                permission: permission
+            )
         }
     }
 
     /// Prompts for a permission and records the outcome.
     public func request(_ permission: Permission) async {
         requestedPermissions.insert(permission)
-        statuses[permission] = await client.request(permission)
+        persistRequest(permission)
+        statuses[permission] = effectiveStatus(
+            await client.request(permission),
+            permission: permission
+        )
     }
 
     public func openSettings(_ permission: Permission) {
         client.openSettings(permission)
+    }
+
+    private func effectiveStatus(
+        _ status: PermissionStatus,
+        permission: Permission
+    ) -> PermissionStatus {
+        guard status == .notDetermined, requestedPermissions.contains(permission) else {
+            return status
+        }
+        // AVFoundation and Speech expose a real not-determined state. The two event
+        // access APIs do not, so after the first request a false preflight means the
+        // user must repair the grant in System Settings.
+        switch permission {
+        case .inputMonitoring, .accessibility: return PermissionStatus.denied
+        case .microphone, .speechRecognition: return PermissionStatus.notDetermined
+        }
     }
 }

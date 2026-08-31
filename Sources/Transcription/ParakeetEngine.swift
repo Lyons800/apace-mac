@@ -52,10 +52,10 @@ actor ParakeetEngine {
     }
 
     /// Awaits every model needed by the current vocabulary configuration.
-    func prepare() async {
-        _ = try? await readyBatchManager()
+    func prepare() async throws {
+        _ = try await readyBatchManager()
         if !VocabularyPreference.vocabulary.activeEntries.isEmpty {
-            _ = try? await readyCtcModels()
+            _ = try await readyCtcModels()
         }
     }
 

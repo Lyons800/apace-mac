@@ -20,11 +20,31 @@ public final class SettingsStore {
     }
 
     public var engine: TranscriptionEngine {
-        didSet { EnginePreference.engine = engine }
+        didSet {
+            EnginePreference.engine = engine
+            NotificationCenter.default.post(name: .apaceTranscriptionEngineChanged, object: nil)
+        }
     }
 
     public var transcriptionLanguage: TranscriptionLanguage {
         didSet { SpeechLanguagePreference.language = transcriptionLanguage }
+    }
+
+    public var dictationActivation: DictationActivationKey {
+        didSet { DictationShortcutPreference.activation = dictationActivation }
+    }
+
+    public var dictationShortcutMode: DictationShortcutMode {
+        didSet { DictationShortcutPreference.mode = dictationShortcutMode }
+    }
+
+    public var dictationCancelShortcut: DictationCancelShortcut {
+        didSet { DictationShortcutPreference.cancel = dictationCancelShortcut }
+    }
+
+    public private(set) var inputDevices: [AudioInputDevice] = []
+    public var selectedInputDeviceID: String? {
+        didSet { MicrophonePreference.selectedUID = selectedInputDeviceID }
     }
 
     public var aiCleanupEnabled: Bool {
@@ -88,12 +108,21 @@ public final class SettingsStore {
     }
 
     private let credentials: CredentialStore
+    private let audioDevices: AudioDeviceClient
 
-    public init(credentials: CredentialStore) {
+    public init(
+        credentials: CredentialStore,
+        audioDevices: AudioDeviceClient = .unavailable
+    ) {
         self.credentials = credentials
+        self.audioDevices = audioDevices
         processingMode = ProcessingModePreference.mode
         engine = EnginePreference.engine
         transcriptionLanguage = SpeechLanguagePreference.language
+        dictationActivation = DictationShortcutPreference.activation
+        dictationShortcutMode = DictationShortcutPreference.mode
+        dictationCancelShortcut = DictationShortcutPreference.cancel
+        selectedInputDeviceID = MicrophonePreference.selectedUID
         aiCleanupEnabled = CleanupPreference.isEnabled
         cleanupProvider = CleanupPreference.provider
         apiKey = ""
@@ -110,6 +139,24 @@ public final class SettingsStore {
             account: visionProvider.keyAccount,
             requires: visionProvider.requiresAPIKey
         )
+        refreshInputDevices()
+    }
+
+    public func refreshInputDevices() {
+        inputDevices = audioDevices.inputDevices()
+        if let selectedInputDeviceID,
+            !inputDevices.contains(where: { $0.id == selectedInputDeviceID })
+        {
+            // Keep the preference so reconnecting restores it; capture transparently
+            // uses System Default until then.
+            inputDevices.insert(
+                AudioInputDevice(
+                    id: selectedInputDeviceID,
+                    name: "Unavailable device — using System Default"
+                ),
+                at: 0
+            )
+        }
     }
 
     private func loadKey(account: String, requires: Bool) -> String {

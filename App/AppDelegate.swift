@@ -1,5 +1,7 @@
 import ApaceClients
 import AppKit
+import AudioCapture
+import DictationPipeline
 import Features
 import Sparkle
 import SystemServices
@@ -14,9 +16,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let dictation = DictationModel(clients: .live)
     let command = CommandModel(clients: .live)
     let permissions = PermissionsModel(client: .live)
-    let settings = SettingsStore(credentials: .live)
+    let settings = SettingsStore(credentials: .live, audioDevices: .live)
     let vocabulary = VocabularyStore(learner: .live)
     let modelStatus = ModelStatus(isReady: !EnginePreference.engine.requiresModelDownload)
+    private lazy var recovery = DictationRecoveryController(clients: .live)
+    private var modelPreparationTask: Task<Void, Never>?
+    private var engineObserver: NSObjectProtocol?
 
     /// Sparkle auto-updater — created only once a public key is configured, so a
     /// developer build (no key yet) doesn't try to check and error.
@@ -39,9 +44,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboarding: OnboardingWindowController?
     private lazy var settingsWindow = SettingsWindowController(
         settings: settings,
-        vocabulary: vocabulary
+        vocabulary: vocabulary,
+        permissions: permissions,
+        modelStatus: modelStatus
     )
-    private lazy var historyWindow = HistoryWindowController()
+    private lazy var historyWindow = HistoryWindowController(recovery: recovery)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         dictation.activate()
@@ -49,12 +56,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Warm up the chosen engine's model so the first dictation doesn't wait on a
         // download, and flip the menu's "preparing model" line off once it's ready.
-        let engine = EnginePreference.engine
-        if engine.requiresModelDownload {
-            Task { @MainActor in
-                await TranscriberClient.prepare(engine)
-                modelStatus.isReady = true
-            }
+        prepareSelectedModel()
+        engineObserver = NotificationCenter.default.addObserver(
+            forName: .apaceTranscriptionEngineChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.prepareSelectedModel() }
         }
 
         // Likewise warm up the local cleanup model when on-device cleanup is on and will
@@ -70,6 +78,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let onboarding = OnboardingWindowController(permissions: permissions)
         onboarding.presentIfNeeded()
         self.onboarding = onboarding
+    }
+
+    func prepareSelectedModel() {
+        modelPreparationTask?.cancel()
+        let engine = EnginePreference.engine
+        guard engine.requiresModelDownload else {
+            modelStatus.state = .ready
+            return
+        }
+        modelStatus.state = .preparing
+        modelPreparationTask = Task { @MainActor in
+            do {
+                try await TranscriberClient.prepare(engine)
+                guard !Task.isCancelled, EnginePreference.engine == engine else { return }
+                modelStatus.state = .ready
+            } catch {
+                guard !Task.isCancelled, EnginePreference.engine == engine else { return }
+                modelStatus.state = .failed(
+                    message: "Model download failed. Check your connection and retry."
+                )
+            }
+        }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {

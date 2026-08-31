@@ -20,7 +20,7 @@ public struct OnboardingView: View {
             header
 
             VStack(spacing: Theme.Spacing.tight) {
-                ForEach(Permission.allCases, id: \.self) { permission in
+                ForEach(permissions.requiredPermissions, id: \.self) { permission in
                     PermissionRow(
                         permission: permission,
                         status: permissions.status(permission),
@@ -54,8 +54,8 @@ public struct OnboardingView: View {
             Text("Welcome to Apace")
                 .font(.largeTitle.bold())
             Text(
-                "Grant the permissions below, then hold Right Option to dictate and "
-                    + "release to insert your text."
+                "Grant the permissions below, then use your dictation shortcut from any app. "
+                    + "You can change the key and behaviour in Settings."
             )
             .font(.callout)
             .foregroundStyle(.secondary)

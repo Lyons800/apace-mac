@@ -1,3 +1,4 @@
+import ApaceClients
 import ApaceCore
 import Foundation
 import SwiftUI
@@ -21,6 +22,42 @@ struct GeneralPane: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            Section("Dictation shortcut") {
+                Picker("Key", selection: $settings.dictationActivation) {
+                    ForEach(DictationActivationKey.allCases, id: \.self) { key in
+                        Text(key.displayName).tag(key)
+                    }
+                }
+                Picker("Behaviour", selection: $settings.dictationShortcutMode) {
+                    ForEach(DictationShortcutMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                Picker("Cancel recording", selection: $settings.dictationCancelShortcut) {
+                    ForEach(DictationCancelShortcut.allCases, id: \.self) { shortcut in
+                        Text(shortcut.displayName).tag(shortcut)
+                    }
+                }
+                Text(shortcutNote)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Microphone") {
+                Picker("Input", selection: $settings.selectedInputDeviceID) {
+                    Text("System Default").tag(String?.none)
+                    ForEach(settings.inputDevices) { device in
+                        Text(device.name).tag(Optional(device.id))
+                    }
+                }
+                Button("Refresh Devices") { settings.refreshInputDevices() }
+                Text(
+                    "If the selected microphone disconnects, Apace falls back to the current system default."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
     }
@@ -35,6 +72,15 @@ struct GeneralPane: View {
             "Cleanup and command-mode screen vision use a cloud provider you choose with "
                 + "your own key. Transcription stays on-device — Parakeet is faster than "
                 + "and as accurate as the cloud options, so there's nothing to gain."
+        }
+    }
+
+    private var shortcutNote: String {
+        switch settings.dictationShortcutMode {
+        case .pushToTalk:
+            "Hold \(settings.dictationActivation.displayName) while speaking, then release to insert. A quick tap cancels."
+        case .handsFree:
+            "Press \(settings.dictationActivation.displayName) once to start and again to insert. Command mode's double-tap gesture is unavailable in hands-free mode."
         }
     }
 }
@@ -135,7 +181,7 @@ struct CommandPane: View {
 
                 if settings.commandEnabled {
                     Text(
-                        "Double-tap Right Option and hold the second tap, speak a request, and release. Apace answers in the notch, or — for requests like “say this in Portuguese” — rewrites the text field you're focused on and pastes the result. (A single hold dictates as usual.)"
+                        "In hold-to-talk mode, double-tap \(settings.dictationActivation.displayName) and hold the second tap, speak a request, and release. Apace answers in the notch, or — for requests like “say this in Portuguese” — rewrites the text field you're focused on and pastes the result."
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -250,6 +296,106 @@ struct DictionaryPane: View {
                     || vocabulary.processingEntryID != nil
             )
             .help(isRecording ? "Stop and learn" : "Learn pronunciation")
+        }
+    }
+}
+
+// MARK: - Dictation Health
+
+struct HealthPane: View {
+    @Bindable var permissions: PermissionsModel
+    @Bindable var modelStatus: ModelStatus
+    @State private var health = DictationHealthSnapshot()
+    @State private var testText = ""
+
+    var body: some View {
+        Form {
+            Section("End-to-end test") {
+                TextField("Click here, then use your dictation shortcut", text: $testText)
+                    .textFieldStyle(.roundedBorder)
+                Text(
+                    "This field tests the real global shortcut, microphone, transcription, "
+                        + "and text insertion path. No diagnostic audio or transcript is saved here."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Section("Permissions") {
+                ForEach(Permission.allCases, id: \.self) { permission in
+                    HStack {
+                        Text(permission.title)
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(permissionLabel(permissions.status(permission)))
+                                .foregroundStyle(
+                                    permissions.status(permission) == .granted ? .green : .orange
+                                )
+                            if !permissions.isRequired(permission) {
+                                Text("Not needed for current model")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+                Button("Refresh Permissions") { permissions.refresh() }
+            }
+
+            Section("Live diagnostics") {
+                diagnostic("Shortcut", health.lastHotkey ?? "No event seen yet")
+                diagnostic("Microphone", health.microphoneName ?? "No recording yet")
+                HStack {
+                    Text("Input level")
+                    Spacer()
+                    ProgressView(value: health.inputLevel)
+                        .frame(width: 150)
+                }
+                diagnostic("Last recording", duration(health.lastRecordingDuration))
+                diagnostic("Transcription", duration(health.lastTranscriptionDuration))
+                diagnostic("Insertion", health.lastInsertion ?? "Not tested yet")
+                diagnostic("Model", modelLabel)
+                if let error = health.lastError {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear { permissions.refresh() }
+        .task {
+            while !Task.isCancelled {
+                health = DictationHealthRecorder.shared.snapshot
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+        }
+    }
+
+    private func diagnostic(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Text(value).foregroundStyle(.secondary)
+        }
+    }
+
+    private func duration(_ value: TimeInterval?) -> String {
+        value.map { String(format: "%.2f seconds", $0) } ?? "Not tested yet"
+    }
+
+    private func permissionLabel(_ status: PermissionStatus) -> String {
+        switch status {
+        case .granted: "Granted"
+        case .denied: "Open System Settings"
+        case .notDetermined: "Not requested"
+        }
+    }
+
+    private var modelLabel: String {
+        switch modelStatus.state {
+        case .ready: "Ready"
+        case .preparing: "Preparing…"
+        case .failed(let message): message
         }
     }
 }

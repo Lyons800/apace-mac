@@ -8,18 +8,32 @@ import SwiftUI
 final class SettingsWindowController {
     private let settings: SettingsStore
     private let vocabulary: VocabularyStore
+    private let permissions: PermissionsModel
+    private let modelStatus: ModelStatus
     private var window: NSWindow?
 
-    init(settings: SettingsStore, vocabulary: VocabularyStore) {
+    init(
+        settings: SettingsStore,
+        vocabulary: VocabularyStore,
+        permissions: PermissionsModel,
+        modelStatus: ModelStatus
+    ) {
         self.settings = settings
         self.vocabulary = vocabulary
+        self.permissions = permissions
+        self.modelStatus = modelStatus
     }
 
     func present() {
         if window == nil {
             let window = NSWindow(
                 contentViewController: NSHostingController(
-                    rootView: SettingsRootView(settings: settings, vocabulary: vocabulary)
+                    rootView: SettingsRootView(
+                        settings: settings,
+                        vocabulary: vocabulary,
+                        permissions: permissions,
+                        modelStatus: modelStatus
+                    )
                 )
             )
             window.title = "Apace Settings"

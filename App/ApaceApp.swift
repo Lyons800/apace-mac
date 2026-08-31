@@ -11,6 +11,7 @@ struct ApaceApp: App {
             MenuContent(
                 dictation: delegate.dictation,
                 modelStatus: delegate.modelStatus,
+                retryModelPreparation: delegate.prepareSelectedModel,
                 canCheckForUpdates: delegate.canCheckForUpdates,
                 checkForUpdates: delegate.checkForUpdates,
                 openSettings: delegate.openSettings,
@@ -31,6 +32,7 @@ struct ApaceApp: App {
 private struct MenuContent: View {
     let dictation: DictationModel
     let modelStatus: ModelStatus
+    let retryModelPreparation: () -> Void
     let canCheckForUpdates: Bool
     let checkForUpdates: () -> Void
     let openSettings: () -> Void
@@ -40,10 +42,18 @@ private struct MenuContent: View {
         Text(dictation.state.menuBarTitle)
             .font(.headline)
 
-        if !modelStatus.isReady {
+        switch modelStatus.state {
+        case .preparing:
             Text("Preparing dictation model… (first launch)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        case .failed(let message):
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.red)
+            Button("Retry Model Download", action: retryModelPreparation)
+        case .ready:
+            EmptyView()
         }
 
         Divider()

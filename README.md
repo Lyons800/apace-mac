@@ -11,12 +11,16 @@ lets you *act* on your voice, not just type.
 
 ## Features
 
-- **System-wide dictation** — hold Right Option to talk, then release to insert.
+- **System-wide dictation** — choose Right/Left Option, Control, or Fn and use either
+  push-to-talk or hands-free toggle mode.
 - **Local-first & private** — transcription and audio stay on your Mac; optional cleanup
   uses the provider you explicitly select.
 - **Multiple engines** — WhisperKit (Core ML), Parakeet, and Apple Speech, with user
   language controls and automatic detection where the engine supports it.
 - **Live notch overlay** — a Dynamic-Island-style transcript and waveform while you speak.
+- **Reliable recovery** — retry failed transcription or insertion from local History.
+- **Dictation Health** — test permissions, shortcut capture, microphone input,
+  transcription, and insertion from one Settings pane.
 - **Command mode** *(in progress)* — a spoken command that acts on your Mac, not just types.
 
 ## Requirements
@@ -63,9 +67,11 @@ xcodegen generate          # writes Apace.xcodeproj from project.yml
 open Apace.xcodeproj       # then build & run the Apace scheme
 ```
 
-Apace lives in the menu bar. Hold **Right Option** to dictate and release to insert the
-text; grant Microphone, Speech Recognition, Input Monitoring, and Accessibility access
-when prompted.
+Apace lives in the menu bar. By default, hold **Right Option** to dictate and release to
+insert the text. Settings lets you change the key, use a hands-free start/stop toggle,
+choose a microphone, and run an end-to-end Dictation Health test. Grant Microphone,
+Input Monitoring, and Accessibility access when prompted; Apple Speech also needs Speech
+Recognition access when selected.
 
 ## Security
 
