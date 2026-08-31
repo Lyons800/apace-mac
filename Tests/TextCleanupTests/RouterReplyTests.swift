@@ -1,3 +1,4 @@
+import ApaceClients
 import ApaceCore
 import Testing
 
@@ -5,6 +6,44 @@ import Testing
 
 @Suite("Router reply parsing")
 struct RouterReplyTests {
+    @Test("A visible WhatsApp conversation gets explicit draft-only guidance")
+    func whatsAppDraftPrompt() {
+        let prompt = RouterPrompt.build(
+            request: "respond to this person in Portuguese",
+            field: FocusedField(appName: "WhatsApp", text: ""),
+            hasScreenshot: true
+        )
+
+        #expect(prompt.contains("A current screenshot is attached"))
+        #expect(prompt.contains("Reply-drafting workflow"))
+        #expect(prompt.contains("return insert JSON"))
+        #expect(prompt.contains("Do not send it"))
+    }
+
+    @Test("Reply drafting refuses to pretend it read context without a screenshot")
+    func replyDraftWithoutScreenshot() {
+        let prompt = RouterPrompt.build(
+            request: "draft a reply",
+            field: FocusedField(appName: "WhatsApp"),
+            hasScreenshot: false
+        )
+
+        #expect(prompt.contains("No screenshot is attached"))
+        #expect(prompt.contains("Ask the user to turn on screen visibility"))
+    }
+
+    @Test("Natural say-back phrasing activates visible reply drafting")
+    func naturalReplyDraftPrompt() {
+        let prompt = RouterPrompt.build(
+            request: "what should I say back in Portuguese?",
+            field: FocusedField(appName: "WhatsApp"),
+            hasScreenshot: true
+        )
+
+        #expect(prompt.contains("Reply-drafting workflow"))
+        #expect(prompt.contains("Do not send it"))
+    }
+
     @Test("A bare JSON object parses into its decision")
     func bareJSON() {
         #expect(

@@ -183,7 +183,7 @@ struct CommandPane: View {
 
                 if settings.commandEnabled {
                     Text(
-                        "In hold-to-talk mode, double-tap \(settings.dictationActivation.displayName) and hold the second tap, speak a request, and release. Apace answers in the notch, or — for requests like “say this in Portuguese” — rewrites the text field you're focused on and pastes the result."
+                        "In hold-to-talk mode, double-tap \(settings.dictationActivation.displayName) and hold the second tap, speak a request, and release. Apace answers in the notch or drafts directly in the focused text field. In WhatsApp, for example, say “respond to this person in Portuguese” to draft from the visible conversation without sending it."
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -198,6 +198,20 @@ struct CommandPane: View {
                     }
 
                     Toggle("Let it see my screen", isOn: $settings.commandVision)
+
+                    if !settings.commandVision {
+                        Text(
+                            "Turn this on to draft replies from visible WhatsApp, Messages, Mail, Slack, Teams, or Telegram conversations."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    } else if !settings.visionProvider.supportsImages {
+                        Text(
+                            "Visible-conversation replies need Anthropic or Google Gemini; the on-device provider cannot read the screen yet."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    }
 
                     if settings.commandVision || settings.commandControl {
                         HStack {

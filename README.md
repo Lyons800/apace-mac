@@ -24,7 +24,9 @@ lets you *act* on your voice, not just type.
 - **Commands & Actions** *(experimental)* — ask a question, rewrite the focused draft,
   or let Apace complete a supervised task on your Mac. Short-lived, memory-only
   conversation context lets “make it shorter”, “send it”, and similar follow-ups refer
-  to the preceding command. Outward and high-impact actions require approval.
+  to the preceding command. With screen visibility enabled, Apace can read a visible
+  WhatsApp, Messages, Mail, Slack, Teams, or Telegram conversation and draft a reply in
+  the requested language without sending it. Outward and high-impact actions require approval.
 
 ## Requirements
 
