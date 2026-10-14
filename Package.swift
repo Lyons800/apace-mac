@@ -38,7 +38,7 @@ let package = Package(
         .package(url: "https://github.com/FluidInference/FluidAudio", exact: "0.15.6"),
         // On-device cleanup LLM for Macs without Apple Intelligence (a small local model
         // via MLX).
-        .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "3.31.4"),
+        .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "3.32.3"),
         .package(url: "https://github.com/huggingface/swift-huggingface", from: "0.9.0"),
         .package(url: "https://github.com/huggingface/swift-transformers", from: "1.3.0"),
     ],
