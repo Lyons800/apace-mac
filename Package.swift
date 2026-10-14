@@ -34,7 +34,7 @@ let package = Package(
         // the integration is against a known-good API surface.
         // WhisperKit vendors its tokenizer and co-resolves its transformer dependencies
         // with the MLX cleanup model below.
-        .package(url: "https://github.com/argmaxinc/WhisperKit", exact: "1.1.0"),
+        .package(url: "https://github.com/argmaxinc/WhisperKit", exact: "1.1.1"),
         .package(url: "https://github.com/FluidInference/FluidAudio", exact: "0.15.6"),
         // On-device cleanup LLM for Macs without Apple Intelligence (a small local model
         // via MLX).
