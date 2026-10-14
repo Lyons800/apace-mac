@@ -1,5 +1,5 @@
 {
-  "originHash" : "8e9cc0b2d8ec9011d0fea389c48af9e18a01b16385738d6f2f70a0a80f73e675",
+  "originHash" : "1a50b8cd866394716b7b8e7228f2142cb8caf8ad8f38471e6534a112abc60845",
   "pins" : [
     {
       "identity" : "eventsource",
@@ -150,8 +150,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/argmaxinc/WhisperKit",
       "state" : {
-        "revision" : "1e2a163736dfa5a198e637ae44c114e1c6d5cc2d",
-        "version" : "1.1.0"
+        "revision" : "1bbc57cb7fe6410248a685b1c5a3c6d56adc2ed4",
+        "version" : "1.1.1"
       }
     },
     {
